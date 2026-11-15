@@ -100,6 +100,33 @@ class GenomeToStructurePipeline:
                 use_cache=use_cache,
             )
 
+    def annotate(self, variants: Sequence[GenomicVariant]) -> list[VariantAnnotation]:
+        """Batched VEP annotation plus ClinVar's aggregate classification per exact allele.
+
+        The ClinVar lookup is best-effort: on failure the VEP submission terms remain.
+        """
+        annotations = self.mapper.annotate_variants(variants)
+        queries = [(v, a.clinvar_ids) for v, a in zip(variants, annotations, strict=True)]
+        if not any(ids for _, ids in queries):
+            return annotations
+        try:
+            found = self.clinvar.classify(queries)
+        except (requests.RequestException, KeyError, ValueError) as exc:
+            logger.warning("ClinVar classification lookup failed: %s", exc)
+            return annotations
+        return [
+            a.model_copy(
+                update={
+                    "clinvar_classification": hit["classification"],
+                    "clinvar_review_status": hit["review_status"],
+                    "clinvar_accession": hit["accession"],
+                }
+            )
+            if hit
+            else a
+            for a, hit in zip(annotations, found, strict=True)
+        ]
+
     def run_variant(
         self,
         variant: GenomicVariant,
@@ -119,7 +146,7 @@ class GenomeToStructurePipeline:
         warnings: list[str] = []
 
         if annotation is None:
-            annotation = self.mapper.annotate_variant(variant)
+            annotation = self.annotate([variant])[0]
         logger.info(
             "%s -> %s (%s), protein pos %s",
             variant,
@@ -248,7 +275,7 @@ class GenomeToStructurePipeline:
         score: bool = True,
     ) -> list[PipelineResult]:
         """Run a batch of variants. VEP annotation is batched; failures are per variant."""
-        annotations = self.mapper.annotate_variants([r.variant for r in records])
+        annotations = self.annotate([r.variant for r in records])
 
         results: list[PipelineResult] = []
         for i, (record, annotation) in enumerate(zip(records, annotations, strict=True), 1):
@@ -303,7 +330,8 @@ def batch_table(results: Sequence[PipelineResult]) -> pd.DataFrame:
             "protein_change": (
                 f"{a.amino_acids}@{a.protein_position}" if a.protein_position else None
             ),
-            "clinvar": ";".join(a.clinvar_significance) or None,
+            "clinvar": a.clinvar_label,
+            "clinvar_review": a.clinvar_review_status,
             "clinvar_somatic": a.clinvar_somatic,
             "gnomad_af": a.gnomad_af,
             "alphafold_entry": s.entry.entry_id if s else None,
@@ -443,9 +471,11 @@ def print_summary(result: PipelineResult) -> None:
         print(f"Consequence: {a.most_severe_consequence or '-'}")
         if a.protein_position:
             print(f"Protein:     {a.amino_acids or '?'} at residue {a.protein_position}")
-        if a.rsid or a.clinvar_significance or a.clinvar_somatic:
-            sig = ", ".join(a.clinvar_significance) or "-"
-            print(f"ClinVar:     {sig} (somatic: {a.clinvar_somatic or '-'}) {a.rsid or ''}")
+        if a.rsid or a.clinvar_label or a.clinvar_somatic:
+            review = f" [{a.clinvar_review_status}]" if a.clinvar_review_status else ""
+            print(f"ClinVar:     {a.clinvar_label or '-'}{review} {a.rsid or ''}")
+            if a.clinvar_somatic:
+                print(f"  somatic:   {a.clinvar_somatic}")
         if a.gnomad_af is not None:
             print(f"gnomAD AF:   {a.gnomad_af:.3g}")
     if result.genes_in_region:

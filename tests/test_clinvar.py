@@ -5,13 +5,16 @@ from fakes import FakeResponse, FakeSession, clinvar_doc, eutils
 
 from geneme_structure.clinvar import (
     ClinVarClient,
+    allele_key,
     build_query,
     matches_consequence,
     parse_summary,
     select_spread,
+    spdi_key,
     spdi_to_vcf,
     write_vcf,
 )
+from geneme_structure.models import GenomicVariant, VariantAnnotation
 from geneme_structure.vcf import read_vcf
 
 
@@ -125,3 +128,42 @@ def test_write_vcf_round_trips(tmp_path):
     [record] = list(read_vcf(path))
     assert record.variant == picked[0].variant
     assert record.vcf_id == "R2H"
+
+
+def test_allele_key_matches_vcf_and_spdi():
+    assert allele_key("17", 7676154, "G", "C") == spdi_key("17", "NC_000017.11:7676153:G:C")
+    # left-aligned VCF deletion vs canonical (repeat-expanded) SPDI
+    assert allele_key("chr7", 117509089, "AG", "A") == spdi_key("7", "NC_000007.14:117509089:GG:G")
+    assert allele_key("7", 117531086, "T", "TT") == spdi_key("7", "NC_000007.14:117531085:T:TT")
+    assert allele_key("17", 1, "G", "C") != allele_key("17", 1, "G", "A")
+
+
+def test_classify_matches_exact_allele_only():
+    docs = [
+        clinvar_doc("12351", "NC_000017.11:7676153:G:C", classification="Benign"),
+        clinvar_doc(
+            "864652",
+            "NC_000017.11:7676153:G:A",
+            classification="Conflicting classifications of pathogenicity",
+        ),
+    ]
+    session = FakeSession().add("eutils", eutils(docs))
+    client = ClinVarClient(session=session)
+    client.min_interval_s = 0
+    p72r = GenomicVariant.parse("chr17:7676154:G>C")
+    other = GenomicVariant.parse("chr17:7676154:G>T")  # no ClinVar record of its own
+    hits = client.classify([(p72r, ["VCV000012351", "VCV000864652"]), (other, ["VCV000864652"])])
+    assert hits[0] == {
+        "classification": "Benign",
+        "review_status": "reviewed by expert panel",
+        "accession": "VCV000012351",
+    }
+    assert hits[1] is None
+    assert client.classify([(p72r, [])]) == [None]
+
+
+def test_clinvar_label_prefers_aggregate():
+    a = VariantAnnotation(clinvar_significance=["pathogenic", "benign"])
+    assert a.clinvar_label == "pathogenic, benign (submissions)"
+    assert a.model_copy(update={"clinvar_classification": "Benign"}).clinvar_label == "Benign"
+    assert VariantAnnotation().clinvar_label is None

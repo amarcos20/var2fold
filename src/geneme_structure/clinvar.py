@@ -159,6 +159,24 @@ def parse_summary(doc: dict[str, Any], gene: str) -> dict[str, Any] | None:
     }
 
 
+def allele_key(chromosome: str, position: int, ref: str, alt: str) -> tuple[str, int, str, str]:
+    """Minimal representation of an allele (shared bases trimmed, then left position).
+
+    Lets a VCF-style variant be matched to a ClinVar canonical SPDI: both reduce
+    to the same key for SNVs, MNVs and left-aligned indels.
+    """
+    while ref and alt and ref[-1] == alt[-1]:
+        ref, alt = ref[:-1], alt[:-1]
+    while ref and alt and ref[0] == alt[0]:
+        ref, alt, position = ref[1:], alt[1:], position + 1
+    return normalize_chromosome(chromosome), position, ref, alt
+
+
+def spdi_key(chromosome: str, spdi: str) -> tuple[str, int, str, str]:
+    _seq, pos0, ref, alt = spdi.split(":")
+    return allele_key(chromosome, int(pos0) + 1, ref, alt)
+
+
 def _tier(p: dict[str, Any]) -> tuple[int, int]:
     """Lower is better: review stars, then Pathogenic before Likely pathogenic."""
     return (
@@ -292,6 +310,38 @@ class ClinVarClient:
             except (requests.RequestException, ValueError) as exc:
                 logger.warning("Skipping %s: %s", p["accession"], exc)
         return selected
+
+    def classify(
+        self, queries: Sequence[tuple[GenomicVariant, Sequence[str]]]
+    ) -> list[dict[str, str] | None]:
+        """ClinVar's aggregate classification for each variant, matched by exact allele.
+
+        `queries` pairs each variant with candidate VCV accessions (e.g. from VEP's
+        co-located variants, which also list *other* alleles at the same position).
+        """
+        uids = sorted(
+            {str(int(acc[3:])) for _, accs in queries for acc in accs if acc[3:].isdigit()},
+            key=int,
+        )
+        if not uids:
+            return [None] * len(queries)
+        by_key: dict[tuple[str, int, str, str], dict[str, str]] = {}
+        for doc in self.summaries(uids):
+            sets = doc.get("variation_set") or []
+            chrom = _grch38_chromosome(doc)
+            spdi = sets[0].get("canonical_spdi") if len(sets) == 1 else None
+            germline = doc.get("germline_classification") or {}
+            if not (spdi and chrom and germline.get("description")):
+                continue
+            by_key[spdi_key(chrom, spdi)] = {
+                "classification": germline["description"],
+                "review_status": germline.get("review_status", ""),
+                "accession": doc.get("accession", ""),
+            }
+        return [
+            by_key.get(allele_key(v.chromosome, v.position, v.reference_bases, v.alternate_bases))
+            for v, _ in queries
+        ]
 
     def _to_variant(self, p: dict[str, Any]) -> ClinVarVariant:
         ref, alt, pos = p["ref"], p["alt"], p["position"]

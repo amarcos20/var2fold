@@ -165,11 +165,30 @@ class VariantAnnotation(_Base):
     )
     clinvar_somatic: str | None = Field(default=None, description="ClinVar somatic class")
     clinvar_ids: list[str] = Field(default_factory=list, description="ClinVar VCV accessions")
+    clinvar_classification: str | None = Field(
+        default=None, description="ClinVar aggregate germline classification for this exact allele"
+    )
+    clinvar_review_status: str | None = None
+    clinvar_accession: str | None = Field(default=None, description="VCV of this exact allele")
     gnomad_af: float | None = Field(default=None, description="Max gnomAD genome/exome AF")
 
     @property
     def primary_uniprot(self) -> str | None:
         return self.uniprot_accessions[0] if self.uniprot_accessions else None
+
+    @property
+    def clinvar_label(self) -> str | None:
+        """ClinVar's aggregate classification when known, else the submitted terms (VEP).
+
+        The aggregate is what ClinVar itself reports for the allele; the VEP terms
+        are individual submissions and can include outdated or minority calls.
+        """
+        if self.clinvar_classification:
+            return self.clinvar_classification
+        if self.clinvar_significance:
+            terms = ", ".join(s.replace("_", " ") for s in self.clinvar_significance)
+            return f"{terms} (submissions)"
+        return None
 
 
 # --------------------------------------------------------------------------- AlphaGenome

@@ -197,7 +197,8 @@ _PAGE = """<!doctype html>
     const v = current;
     const rows = [
       ["Variant", v.label], ["Genomic", v.variant], ["Consequence", v.consequence],
-      ["ClinVar", v.clinvar], ["gnomAD AF", v.gnomad === null ? "-" : v.gnomad.toPrecision(3)],
+      ["ClinVar", v.clinvar], ["ClinVar review", v.review],
+      ["gnomAD AF", v.gnomad === null ? "-" : v.gnomad.toPrecision(3)],
       ["Residue", v.residue === null ? "not on this model" : v.residue],
       ["pLDDT", v.plddt === null ? "-" : v.plddt.toFixed(1) + " (" + v.band + ")"],
       ["RNA LFC", fmt(v.rna_lfc)], ["Splicing", fmt(v.splicing)],
@@ -262,9 +263,8 @@ def variant_rows(results: Sequence[PipelineResult], structure: StructureResult) 
                     if a and a.consequence_terms
                     else (a.most_severe_consequence if a else None)
                 ),
-                "clinvar": ", ".join(x.replace("_", " ") for x in a.clinvar_significance)
-                if a and a.clinvar_significance
-                else None,
+                "clinvar": a.clinvar_label if a else None,
+                "review": a.clinvar_review_status if a else None,
                 "gnomad": a.gnomad_af if a else None,
                 "residue": s.residue if on_model else None,
                 "plddt": s.residue_plddt if on_model else None,
