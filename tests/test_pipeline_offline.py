@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from fakes import AF_ENTRY, TOY_PDB, FakeResponse, FakeSession, vep_echo
+from fakes import AF_ENTRY, TOY_PDB, FakeResponse, FakeSession, clinvar_doc, eutils, vep_echo
 
-from geneme_structure import alphafold_client, gene_mapping
+from geneme_structure import alphafold_client, clinvar, gene_mapping
 from geneme_structure.alphagenome_client import AlphaGenomeClient, summarize_scores
 from geneme_structure.config import Settings
 from geneme_structure.models import GenomicVariant, ScoreRecord, VariantScores
@@ -248,3 +248,28 @@ def test_run_region_and_summary(settings, capsys):
     print_summary(result)
     out = capsys.readouterr().out
     assert "Genes:       TP53, ORPHAN" in out and "! No reviewed UniProt entry" in out
+
+
+def test_cli_gene_without_alphagenome(tmp_path, monkeypatch, capsys):
+    session = _session()
+    session.add("eutils", eutils([clinvar_doc("7", "NC_000017.11:7675087:C:T", protein="R2H")]))
+    monkeypatch.setattr(gene_mapping, "build_session", lambda: session)
+    monkeypatch.setattr(alphafold_client, "build_session", lambda: session)
+    monkeypatch.setattr(clinvar.time, "sleep", lambda s: None)
+    monkeypatch.chdir(tmp_path)
+
+    code = main(["-o", str(tmp_path / "res"), "gene", "TP53", "--no-alphagenome"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "R2H" in out and "chr17:7675088:C>T" in out
+    vcf = (tmp_path / "res" / "TP53_clinvar_missense.vcf").read_text()
+    assert "chr17\t7675088\tR2H\tC\tT" in vcf
+    summary = pd.read_csv(tmp_path / "res" / "TP53_clinvar_missense_summary.csv")
+    assert summary.loc[0, "vcf_id"] == "R2H"
+
+
+def test_cli_gene_no_hits_is_an_error(tmp_path, monkeypatch):
+    session = _session().add("eutils", eutils([]))
+    monkeypatch.setattr(gene_mapping, "build_session", lambda: session)
+    monkeypatch.chdir(tmp_path)
+    assert main(["-o", str(tmp_path), "gene", "NOTAGENE", "--no-alphagenome"]) == 2

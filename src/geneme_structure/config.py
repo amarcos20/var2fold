@@ -28,6 +28,7 @@ class Settings(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     alphagenome_api_key: SecretStr | None = None
+    ncbi_api_key: SecretStr | None = None  # optional: raises the NCBI E-utilities rate limit
     cache_dir: Path = Path(".cache")
     data_dir: Path = Path("data")
     http_timeout: float = Field(default=30.0, gt=0)
@@ -42,8 +43,11 @@ class Settings(BaseModel):
         raw_key = os.getenv("ALPHAGENOME_API_KEY")
         key = None if raw_key is None or raw_key.strip() in _PLACEHOLDER_KEYS else raw_key.strip()
 
+        ncbi_key = (os.getenv("NCBI_API_KEY") or "").strip()
+
         return cls(
             alphagenome_api_key=SecretStr(key) if key else None,
+            ncbi_api_key=SecretStr(ncbi_key) if ncbi_key else None,
             cache_dir=Path(os.getenv("GENEME_CACHE_DIR", ".cache")),
             data_dir=Path(os.getenv("GENEME_DATA_DIR", "data")),
             http_timeout=float(os.getenv("GENEME_HTTP_TIMEOUT", "30")),
