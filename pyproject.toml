@@ -21,7 +21,7 @@ dependencies = [
 # The official AlphaGenome SDK (gRPC). Kept optional so the AlphaFold /
 # annotation parts of the tool install and run without it.
 alphagenome = ["alphagenome>=2.0"]
-dev = ["pytest>=8", "ruff>=0.5"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5"]
 
 [project.scripts]
 geneme-structure = "geneme_structure.pipeline:main"
@@ -38,3 +38,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]

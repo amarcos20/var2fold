@@ -1,5 +1,7 @@
 # geneme-structure
 
+[![CI](https://github.com/amarcos20/geneme-structure/actions/workflows/ci.yml/badge.svg)](https://github.com/amarcos20/geneme-structure/actions/workflows/ci.yml)
+
 **From a genetic variant to its predicted regulatory effect to the 3D protein it hits, in one command.**
 
 `geneme-structure` links three data sources:
@@ -145,9 +147,11 @@ The hotspots sit in the confidently predicted DNA-binding domain (pLDDT > 94). P
 ## Development
 
 ```bash
-pytest          # offline unit tests (no network, no API key)
-ruff check .
+pytest --cov=geneme_structure   # 51 offline tests, ~91% coverage, no network or API key
+ruff check . && ruff format --check .
 ```
+
+Every HTTP dependency (Ensembl, UniProt, AlphaFold DB) is replaced by a recording `FakeSession` (`tests/fakes.py`), and the AlphaGenome model by small fakes. The suite therefore covers the end-to-end pipeline and CLI, batching, caching and error paths deterministically. CI (`.github/workflows/ci.yml`) runs lint and tests on Python 3.11 to 3.14.
 
 ## Limitations
 
