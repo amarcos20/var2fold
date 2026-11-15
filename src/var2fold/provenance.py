@@ -13,7 +13,7 @@ import logging
 import platform
 import subprocess
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -108,7 +108,7 @@ def collect_provenance(
     windows = sorted({vs.interval.width for r in results for vs in r.variant_scores})
     conditions = sorted({vs.condition for r in results for vs in r.variant_scores})
     return {
-        "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "software": {
             "var2fold": __version__,
             "git_commit": commit or git_commit(),

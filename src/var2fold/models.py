@@ -10,7 +10,7 @@ Coordinate conventions
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -214,7 +214,7 @@ class AlphaGenomePrediction(_Base):
     condition: str
     tracks: list[TrackSummary]
     from_cache: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ScoreRecord(_Base):
@@ -250,7 +250,7 @@ class VariantScores(_Base):
     summary: list[ScorerSummary]
     records: list[ScoreRecord] = Field(default_factory=list, repr=False)
     from_cache: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     def effects(self) -> list[ScorerSummary]:
         return [s for s in self.summary if s.kind == "effect"]
