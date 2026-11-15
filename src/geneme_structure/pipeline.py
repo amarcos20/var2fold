@@ -68,9 +68,15 @@ class GenomeToStructurePipeline:
         self,
         variant: GenomicVariant,
         ontology_terms: Sequence[str] = DEFAULT_ONTOLOGY,
-        output_types: Sequence[str] = ("RNA_SEQ",),
+        output_types: Sequence[str] = (),
         uniprot_override: str | None = None,
+        score: bool = True,
     ) -> PipelineResult:
+        """Annotate, score and fetch the structure for one variant.
+
+        `score` runs AlphaGenome's recommended variant scorers (the headline
+        numbers). `output_types` additionally requests raw REF/ALT tracks.
+        """
         warnings: list[str] = []
 
         annotation = self.mapper.annotate_variant(variant)
@@ -82,9 +88,12 @@ class GenomeToStructurePipeline:
             annotation.protein_position,
         )
 
-        prediction = None
+        prediction = scores = None
         if self.alphagenome is not None:
-            prediction = self.alphagenome.predict_variant(variant, ontology_terms, output_types)
+            if score:
+                scores = self.alphagenome.score_variant(variant, ontology_terms)
+            if output_types:
+                prediction = self.alphagenome.predict_variant(variant, ontology_terms, output_types)
 
         accession = uniprot_override or annotation.primary_uniprot
         if accession is None and annotation.gene_symbol:
@@ -104,6 +113,7 @@ class GenomeToStructurePipeline:
             query=str(variant),
             annotation=annotation,
             alphagenome=prediction,
+            variant_scores=scores,
             structures=structures,
             warnings=warnings,
         )
@@ -148,12 +158,24 @@ class GenomeToStructurePipeline:
 # --------------------------------------------------------------------------- reporting
 
 
+def report_stem(query: str) -> str:
+    return "".join(c if c.isalnum() else "_" for c in query).strip("_")
+
+
 def write_report(result: PipelineResult, out_dir: Path) -> Path:
-    """Write `<query>.json` (full result) and `<query>_tracks.csv` (AlphaGenome table)."""
+    """Write the JSON result plus CSV tables.
+
+    * `<query>.json`: full result (per-track score records go to the CSV instead)
+    * `<query>_scores.csv`: every AlphaGenome variant score (tidy, one row per track)
+    * `<query>_tracks.csv`: raw-track summaries, when requested
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = "".join(c if c.isalnum() else "_" for c in result.query).strip("_")
+    stem = report_stem(result.query)
     json_path = out_dir / f"{stem}.json"
-    json_path.write_text(result.model_dump_json(indent=2))
+    json_path.write_text(result.model_dump_json(indent=2, exclude={"variant_scores": {"records"}}))
+    if result.variant_scores and result.variant_scores.records:
+        df = pd.DataFrame([r.model_dump() for r in result.variant_scores.records])
+        df.to_csv(out_dir / f"{stem}_scores.csv", index=False)
     if result.alphagenome and result.alphagenome.tracks:
         df = pd.DataFrame([t.model_dump() for t in result.alphagenome.tracks])
         df.to_csv(out_dir / f"{stem}_tracks.csv", index=False)
@@ -169,6 +191,15 @@ def print_summary(result: PipelineResult) -> None:
             print(f"Protein:     {a.amino_acids or '?'} at residue {a.protein_position}")
     if result.genes_in_region:
         print(f"Genes:       {', '.join(result.genes_in_region)}")
+    if vs := result.variant_scores:
+        src = "cache" if vs.from_cache else "live"
+        print(f"\nAlphaGenome variant scores ({src}, {vs.condition}, window {vs.interval}):")
+        df = pd.DataFrame([x.model_dump() for x in vs.effects()])
+        if df.empty:
+            print("  (no scores returned)")
+        else:
+            cols = ["output_type", "scorer", "n_scores", "top_score", "top_gene"]
+            print(df[cols].fillna("-").to_string(index=False, float_format=lambda v: f"{v:+.4f}"))
     if p := result.alphagenome:
         src = "cache" if p.from_cache else "live"
         print(f"\nAlphaGenome ({src}, window {p.interval}, {', '.join(p.ontology_terms)}):")
@@ -188,7 +219,7 @@ def print_summary(result: PipelineResult) -> None:
 # --------------------------------------------------------------------------- CLI
 
 
-def _add_prediction_args(p: argparse.ArgumentParser) -> None:
+def _add_prediction_args(p: argparse.ArgumentParser, default_outputs: list[str]) -> None:
     p.add_argument(
         "--ontology",
         nargs="+",
@@ -199,10 +230,11 @@ def _add_prediction_args(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--outputs",
         nargs="+",
-        default=["RNA_SEQ"],
+        default=default_outputs,
         choices=TRACK_OUTPUT_TYPES,
         metavar="TYPE",
-        help=f"AlphaGenome output types: {', '.join(TRACK_OUTPUT_TYPES)}",
+        help=f"Raw AlphaGenome tracks to summarise: {', '.join(TRACK_OUTPUT_TYPES)} "
+        "(default: %(default)s)",
     )
     p.add_argument(
         "--sequence-length",
@@ -227,12 +259,15 @@ def build_parser() -> argparse.ArgumentParser:
     pv = sub.add_parser("variant", help="Analyse a single GRCh38 variant, e.g. chr17:7675088:C>T")
     pv.add_argument("variant", type=GenomicVariant.parse)
     pv.add_argument("--uniprot", help="Override the UniProt accession used for the structure")
-    _add_prediction_args(pv)
+    pv.add_argument(
+        "--no-scores", action="store_true", help="Skip AlphaGenome recommended variant scorers"
+    )
+    _add_prediction_args(pv, default_outputs=[])
 
     pr = sub.add_parser("region", help="Analyse a GRCh38 region, e.g. chr17:7668421-7687490")
     pr.add_argument("region", type=GenomicInterval.parse)
     pr.add_argument("--max-genes", type=int, default=MAX_REGION_GENES)
-    _add_prediction_args(pr)
+    _add_prediction_args(pr, default_outputs=["RNA_SEQ"])
 
     ps = sub.add_parser("structure", help="Fetch an AlphaFold DB model by UniProt accession")
     ps.add_argument("uniprot")
@@ -271,7 +306,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if args.command == "variant":
                 result = pipeline.run_variant(
-                    args.variant, args.ontology, args.outputs, uniprot_override=args.uniprot
+                    args.variant,
+                    args.ontology,
+                    args.outputs,
+                    uniprot_override=args.uniprot,
+                    score=not args.no_scores,
                 )
             else:
                 result = pipeline.run_region(

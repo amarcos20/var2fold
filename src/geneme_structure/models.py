@@ -79,6 +79,15 @@ class GenomicVariant(_Base):
         )
 
     @property
+    def reference_interval(self) -> GenomicInterval:
+        """0-based half-open span of the REF allele."""
+        return GenomicInterval(
+            chromosome=self.chromosome,
+            start=self.position - 1,
+            end=self.position - 1 + len(self.reference_bases),
+        )
+
+    @property
     def ensembl_chromosome(self) -> str:
         return self.chromosome.removeprefix("chr").replace("M", "MT")
 
@@ -118,7 +127,19 @@ class GenomicInterval(_Base):
 
     @property
     def center(self) -> int:
-        return (self.start + self.end) // 2
+        """Centre rounded up for odd widths (same convention as `alphagenome.data.genome`)."""
+        return (self.start + self.end + 1) // 2
+
+    def resized(self, width: int) -> GenomicInterval:
+        """Resize around the centre exactly like `genome.Interval.resize` (+ strand).
+
+        Matching the SDK matters: AlphaGenome is not perfectly shift-invariant,
+        so a 1 bp offset in the window changes the scores slightly.
+        """
+        start = self.center - (width + 1) // 2
+        if start < 0:
+            raise ValueError(f"{width} bp window around {self} runs off the chromosome start")
+        return GenomicInterval(chromosome=self.chromosome, start=start, end=start + width)
 
     def __str__(self) -> str:
         return f"{self.chromosome}:{self.start + 1}-{self.end}"
@@ -168,6 +189,45 @@ class AlphaGenomePrediction(_Base):
     tracks: list[TrackSummary]
     from_cache: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ScoreRecord(_Base):
+    """One row of AlphaGenome's tidy variant-score table (selected columns)."""
+
+    output_type: str
+    variant_scorer: str
+    track_name: str | None = None
+    gene_name: str | None = None
+    biosample_name: str | None = None
+    raw_score: float
+
+
+class ScorerSummary(_Base):
+    """Strongest signal for one (output type, scorer) pair."""
+
+    output_type: str
+    scorer: str
+    kind: str = Field(description="'effect' (ALT vs REF) or 'activity' (max of REF/ALT)")
+    n_scores: int
+    max_abs_score: float
+    top_score: float
+    top_track: str | None = None
+    top_gene: str | None = None
+
+
+class VariantScores(_Base):
+    """Output of `score_variant` with AlphaGenome's recommended scorers."""
+
+    query: str
+    interval: GenomicInterval
+    condition: str
+    summary: list[ScorerSummary]
+    records: list[ScoreRecord] = Field(default_factory=list, repr=False)
+    from_cache: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def effects(self) -> list[ScorerSummary]:
+        return [s for s in self.summary if s.kind == "effect"]
 
 
 # --------------------------------------------------------------------------- AlphaFold
@@ -232,5 +292,6 @@ class PipelineResult(_Base):
     annotation: VariantAnnotation | None = None
     genes_in_region: list[str] = Field(default_factory=list)
     alphagenome: AlphaGenomePrediction | None = None
+    variant_scores: VariantScores | None = None
     structures: list[StructureResult] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

@@ -23,21 +23,29 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import numpy as np
+import pandas as pd
+from pydantic import BaseModel
 
 from geneme_structure.models import (
     AlphaGenomePrediction,
     GenomicInterval,
     GenomicVariant,
+    ScoreRecord,
+    ScorerSummary,
     TrackSummary,
+    VariantScores,
 )
 
 logger = logging.getLogger(__name__)
+
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 # Context windows accepted by AlphaGenome 2 (16 KB, 100 KB, 500 KB, 1 MB).
 SUPPORTED_SEQUENCE_LENGTHS: tuple[int, ...] = (16_384, 131_072, 524_288, 1_048_576)
@@ -55,7 +63,7 @@ TRACK_OUTPUT_TYPES: tuple[str, ...] = (
     "METHYLATION",
 )
 
-CACHE_SCHEMA_VERSION = 2  # bump when the SDK/model or summary format changes
+CACHE_SCHEMA_VERSION = 3  # bump when the SDK/model or summary format changes
 
 
 class AlphaGenomeUnavailableError(ImportError):
@@ -74,6 +82,11 @@ def to_condition(ontology_terms: Sequence[str]) -> str:
             "Run separate queries to compare tissues."
         )
     return "_".join(terms)
+
+
+def variant_window(variant: GenomicVariant, length: int) -> GenomicInterval:
+    """`length`-bp window centred on the REF allele, as `variant.reference_interval.resize`."""
+    return variant.reference_interval.resized(length)
 
 
 # --------------------------------------------------------------------------- cache
@@ -193,14 +206,20 @@ class AlphaGenomeClient:
             time.sleep(wait)
         self._last_call = time.monotonic()
 
-    def _cached_or_call(self, payload: dict[str, Any], call: Any) -> AlphaGenomePrediction:
+    def _cached_or_call(
+        self,
+        payload: dict[str, Any],
+        call: Callable[[], ModelT],
+        model: type[BaseModel] = AlphaGenomePrediction,
+    ) -> ModelT:
         if self.use_cache and (hit := self.cache.get(payload)) is not None:
-            logger.info("AlphaGenome cache hit for %s", payload["query"])
-            return AlphaGenomePrediction.model_validate(hit).model_copy(update={"from_cache": True})
+            logger.info("AlphaGenome cache hit (%s) for %s", payload["kind"], payload["query"])
+            cached = model.model_validate(hit).model_copy(update={"from_cache": True})
+            return cached  # type: ignore[return-value]
 
         self._throttle()
-        logger.info("Querying AlphaGenome for %s", payload["query"])
-        prediction: AlphaGenomePrediction = call()
+        logger.info("Querying AlphaGenome (%s) for %s", payload["kind"], payload["query"])
+        prediction = call()
         if self.use_cache:
             path = self.cache.set(payload, prediction.model_dump(mode="json"))
             logger.debug("Cached AlphaGenome response at %s", path)
@@ -220,12 +239,7 @@ class AlphaGenomeClient:
         self._validate_length(length)
         outputs = self._validate_outputs(output_types)
         to_condition(ontology_terms)  # fail fast, before any network call
-        centre = variant.position - 1  # 0-based
-        interval = GenomicInterval(
-            chromosome=variant.chromosome,
-            start=max(0, centre - length // 2),
-            end=max(0, centre - length // 2) + length,
-        )
+        interval = variant_window(variant, length)
         payload = {
             "v": CACHE_SCHEMA_VERSION,
             "kind": "predict_variant",
@@ -288,8 +302,7 @@ class AlphaGenomeClient:
             )
         outputs = self._validate_outputs(output_types)
         to_condition(ontology_terms)  # fail fast, before any network call
-        start = max(0, interval.center - length // 2)
-        window = GenomicInterval(chromosome=interval.chromosome, start=start, end=start + length)
+        window = interval.resized(length)
         payload = {
             "v": CACHE_SCHEMA_VERSION,
             "kind": "predict_interval",
@@ -319,6 +332,55 @@ class AlphaGenomeClient:
             )
 
         return self._cached_or_call(payload, call)
+
+    def score_variant(
+        self,
+        variant: GenomicVariant,
+        ontology_terms: Sequence[str],
+        sequence_length: int | None = None,
+    ) -> VariantScores:
+        """Score `variant` with AlphaGenome's recommended variant scorers.
+
+        Unlike `predict_variant`, this uses the model's own scoring recipes
+        (centre-masked log2 ratios, gene-level LFC, splicing scores, ...).
+        These are the numbers to report and compare across variants.
+        """
+        length = sequence_length or self.sequence_length
+        self._validate_length(length)
+        condition = to_condition(ontology_terms)
+        interval = variant_window(variant, length)
+        payload = {
+            "v": CACHE_SCHEMA_VERSION,
+            "kind": "score_variant",
+            "query": str(variant),
+            "interval": str(interval),
+            "condition": condition,
+        }
+
+        def call() -> VariantScores:
+            genome, _ = _import_sdk()
+            from alphagenome.models.v2 import variant_scorers
+
+            scores = self.model.score_variant(
+                genome.Interval(interval.chromosome, interval.start, interval.end),
+                genome.Variant(
+                    chromosome=variant.chromosome,
+                    position=variant.position,
+                    reference_bases=variant.reference_bases,
+                    alternate_bases=variant.alternate_bases,
+                ),
+                condition=condition,
+            )
+            records = records_from_tidy(variant_scorers.tidy_scores(scores))
+            return VariantScores(
+                query=str(variant),
+                interval=interval,
+                condition=condition,
+                summary=summarize_scores(records),
+                records=records,
+            )
+
+        return self._cached_or_call(payload, call, VariantScores)
 
 
 # --------------------------------------------------------------------------- reducers
@@ -372,3 +434,64 @@ def summarize_interval_tracks(output_type: str, data: Any) -> TrackSummary | Non
         mean_signal=float(values.mean()),
         top_track=_track_names(data, np.atleast_1d(per_track_mean).size)[top],
     )
+
+
+# --------------------------------------------------------------------------- variant scores
+
+_SCORER_NOISE = re.compile(r"requested_output=\w+,?\s*|aggregation_type=")
+
+
+def short_scorer_name(scorer: str) -> str:
+    """Drop redundant fields from a scorer repr.
+
+    'CenterMaskScorer(requested_output=ATAC, width=501, aggregation_type=ACTIVE_SUM)'
+    -> 'CenterMaskScorer(width=501, ACTIVE_SUM)'
+    """
+    name = _SCORER_NOISE.sub("", scorer)
+    return name.replace(", )", ")").replace("(, ", "(")
+
+
+def scorer_kind(scorer: str) -> str:
+    """ACTIVE_* / *ActiveScorer measure activity (max of REF, ALT), not ALT-vs-REF effect."""
+    return "activity" if "Active" in scorer or "ACTIVE" in scorer else "effect"
+
+
+def records_from_tidy(tidy: pd.DataFrame | None) -> list[ScoreRecord]:
+    """Keep the columns we report from `variant_scorers.tidy_scores` output."""
+    if tidy is None or tidy.empty:
+        return []
+    text_cols = ["track_name", "gene_name", "biosample_name"]
+    df = tidy.reindex(columns=["output_type", "variant_scorer", *text_cols, "raw_score"])
+    df = df.dropna(subset=["raw_score"]).copy()
+    df["output_type"] = df["output_type"].astype(str)
+    df["variant_scorer"] = df["variant_scorer"].astype(str).map(short_scorer_name)
+    df[text_cols] = df[text_cols].astype(object).where(df[text_cols].notna(), None)
+    return [ScoreRecord(**row) for row in df.to_dict(orient="records")]
+
+
+def _text_or_none(value: Any) -> str | None:
+    return None if value is None or pd.isna(value) else str(value)
+
+
+def summarize_scores(records: Sequence[ScoreRecord]) -> list[ScorerSummary]:
+    """Strongest |score| per (output type, scorer); effect scorers listed first."""
+    if not records:
+        return []
+    df = pd.DataFrame([r.model_dump() for r in records])
+    df["abs_score"] = df["raw_score"].abs()
+    out = []
+    for (otype, scorer), group in df.groupby(["output_type", "variant_scorer"], sort=True):
+        top = group.loc[group["abs_score"].idxmax()]
+        out.append(
+            ScorerSummary(
+                output_type=str(otype),
+                scorer=str(scorer),
+                kind=scorer_kind(str(scorer)),
+                n_scores=len(group),
+                max_abs_score=float(top["abs_score"]),
+                top_score=float(top["raw_score"]),
+                top_track=_text_or_none(top["track_name"]),
+                top_gene=_text_or_none(top["gene_name"]),
+            )
+        )
+    return sorted(out, key=lambda x: (x.kind != "effect", x.output_type, x.scorer))
