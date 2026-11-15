@@ -87,7 +87,8 @@ pipeline = GenomeToStructurePipeline(
     score=use_alphagenome,
 )
 vcf_path = write_vcf(selection, OUT / f"{gene}_clinvar_{consequence}.vcf")
-print(f"Selection saved to {vcf_path.relative_to(ROOT)} (re-run it with: genome-structure vcf ...)")
+shown = vcf_path.relative_to(ROOT) if vcf_path.is_relative_to(ROOT) else vcf_path
+print(f"Selection saved to {shown} (re-run it with: genome-structure vcf ...)")
 pd.DataFrame(
     {
         "label": cv.label,
