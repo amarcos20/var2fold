@@ -4,7 +4,7 @@
 
 **From a genetic variant to its predicted regulatory effect to the 3D protein it hits, in one command.**
 
-**[Live demo: interactive 3D viewers and reports for BRCA1 and TP53](https://amarcos20.github.io/var2fold/)**
+**[Live demo: interactive 3D viewers for BRCA1 and TP53, and the ClinVar benchmark](https://amarcos20.github.io/var2fold/)**
 
 `var2fold` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
 
@@ -67,6 +67,7 @@ flowchart LR
 | `report.py` | Self-contained HTML report: 3Dmol.js viewer coloured by pLDDT, mutated residue highlighted |
 | `gene_viewer.py` | One HTML page per batch: every variant on the AlphaFold model, clickable table, provenance panel |
 | `provenance.py` | Date, git commit, SDK, Ensembl release, AlphaFold model versions, parameters and data-source attribution |
+| `validation.py` | Benchmark helpers: ClinVar labels, dependency-free ROC AUC with bootstrap CIs and Mann-Whitney p, per-gene AUC |
 | `plots.py` | Notebook figures: pLDDT profile with variants and domains (collision-free labels), AlphaGenome effect panels |
 | `pipeline.py` | Orchestration, batch summary and data-driven findings, reporting, and the CLI |
 
@@ -128,6 +129,9 @@ var2fold gene BRCA1 --max-variants 10
 
 # ...or splice-site variants, where AlphaGenome is most informative
 var2fold gene CFTR --consequence splice --max-variants 10
+
+# ...or its benign variants, as a contrast set
+var2fold gene TP53 --significance benign,likely_benign --max-variants 10
 
 # Structure only (no API key required)
 var2fold structure P04637 --residue 175
@@ -207,7 +211,7 @@ All ten variants are coding missense changes. Most sit in the folded RING and BR
 
 ### Project site (GitHub Pages)
 
-[`docs/`](docs/) is a static site, with a landing page and, for each case study, a 3D viewer, the executed notebook as HTML and a `provenance.json`. Rebuild it with:
+[`docs/`](docs/) is a static site, with a landing page, the benchmark notebook as HTML and, for each case study, a 3D viewer, the executed notebook and a `provenance.json`. Rebuild it with:
 
 ```bash
 python scripts/build_site.py
@@ -236,13 +240,16 @@ ruff check . && ruff format --check .
 
 Every HTTP dependency (Ensembl, UniProt, AlphaFold DB, NCBI E-utilities) is replaced by a recording `FakeSession` (`tests/fakes.py`), and the AlphaGenome model by small fakes. The suite therefore covers the end-to-end pipeline and CLI, batching, caching and error paths deterministically. CI (`.github/workflows/ci.yml`) runs lint and tests on Python 3.11 to 3.14.
 
+**Releasing:** bump `version` in `pyproject.toml`, commit, then push a matching tag (`git tag v0.1.1 && git push origin v0.1.1`). `.github/workflows/release.yml` builds the package and publishes it to PyPI with trusted publishing (no token in the repository).
+
 ## Limitations
 
 - Human (GRCh38) only.
 - `gene` mode selects ClinVar variants by review status, then spreads ties evenly along the gene. The selection is therefore not a random sample of the gene's variants. ClinVar changes monthly; the saved VCF keeps a run reproducible.
 - The AlphaGenome 2 tidy output has raw scores only (no quantile normalisation), so magnitudes are comparable within a scorer but not across scorers.
 - Raw-track summaries (`--outputs`) are deliberately coarse (window sums and max |Δ|). Use the variant scores for interpretation.
-- AlphaFold DB models are monomer predictions. pLDDT measures model confidence, not the effect of the mutation.
+- AlphaFold DB models are monomer predictions. pLDDT measures model confidence, not the effect of the mutation. Very long proteins (e.g. BRCA2) have no model served by the AlphaFold DB API.
+- The benchmark covers missense variants in six well-studied genes. It shows which signals carry information, not how var2fold compares with dedicated pathogenicity predictors (AlphaMissense, REVEL).
 
 ## Licence & attribution
 
