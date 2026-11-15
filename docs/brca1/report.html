@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light"><div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid #ccc"><a href="../">← genome-structure</a> · <a href="viewer.html">3D viewer</a> · Executed notebook, rendered as a static page. Research use only.</div>
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=13e9ca52">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5cf34e6c">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7816,7 +7816,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs celltag_parameters" id="cell-id=4b1f9af5">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs celltag_parameters" id="cell-id=b3bf1e1b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7837,7 +7837,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs celltag_injected-parameters" id="cell-id=3e26f629">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs celltag_injected-parameters" id="cell-id=43457158">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7854,7 +7854,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=29506729">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=f2f4bcd7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7896,7 +7896,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a36935cd">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bd9c0592">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7906,7 +7906,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=99ca49af">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=443e8288">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7923,7 +7923,8 @@ a.anchor-link {
     <span class="n">score</span><span class="o">=</span><span class="n">use_alphagenome</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="n">vcf_path</span> <span class="o">=</span> <span class="n">write_vcf</span><span class="p">(</span><span class="n">selection</span><span class="p">,</span> <span class="n">OUT</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s2">_clinvar_</span><span class="si">{</span><span class="n">consequence</span><span class="si">}</span><span class="s2">.vcf"</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Selection saved to </span><span class="si">{</span><span class="n">vcf_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">ROOT</span><span class="p">)</span><span class="si">}</span><span class="s2"> (re-run it with: genome-structure vcf ...)"</span><span class="p">)</span>
+<span class="n">shown</span> <span class="o">=</span> <span class="n">vcf_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">ROOT</span><span class="p">)</span> <span class="k">if</span> <span class="n">vcf_path</span><span class="o">.</span><span class="n">is_relative_to</span><span class="p">(</span><span class="n">ROOT</span><span class="p">)</span> <span class="k">else</span> <span class="n">vcf_path</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Selection saved to </span><span class="si">{</span><span class="n">shown</span><span class="si">}</span><span class="s2"> (re-run it with: genome-structure vcf ...)"</span><span class="p">)</span>
 <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
     <span class="p">{</span>
         <span class="s2">"label"</span><span class="p">:</span> <span class="n">cv</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
@@ -8079,7 +8080,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=eb279bb5">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8c47ba21">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8089,7 +8090,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b3e3b743">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=dfd554a6">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8272,7 +8273,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=270f3ba7">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5ec4a1ec">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8282,7 +8283,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=3e7e21d7">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8dc6b4ac">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8330,7 +8331,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8f83591d">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=80409ddb">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8340,7 +8341,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f2667352">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ada36ca6">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8378,7 +8379,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bfa8f004">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=629b1e4a">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8388,7 +8389,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=40d3b370">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=1d2f9d01">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8421,7 +8422,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=723a6407">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bf300e73">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
