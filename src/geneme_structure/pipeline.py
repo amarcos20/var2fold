@@ -34,6 +34,7 @@ from geneme_structure.alphagenome_client import (
 from geneme_structure.config import MissingCredentialError, Settings
 from geneme_structure.gene_mapping import GeneMapper
 from geneme_structure.models import GenomicInterval, GenomicVariant, PipelineResult
+from geneme_structure.report import write_structure_html
 
 logger = logging.getLogger("geneme_structure")
 
@@ -168,6 +169,7 @@ def write_report(result: PipelineResult, out_dir: Path) -> Path:
     * `<query>.json`: full result (per-track score records go to the CSV instead)
     * `<query>_scores.csv`: every AlphaGenome variant score (tidy, one row per track)
     * `<query>_tracks.csv`: raw-track summaries, when requested
+    * `<query>_<AF entry>.html`: interactive 3D viewer for each fetched PDB structure
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = report_stem(result.query)
@@ -179,6 +181,11 @@ def write_report(result: PipelineResult, out_dir: Path) -> Path:
     if result.alphagenome and result.alphagenome.tracks:
         df = pd.DataFrame([t.model_dump() for t in result.alphagenome.tracks])
         df.to_csv(out_dir / f"{stem}_tracks.csv", index=False)
+    for structure in result.structures:
+        if structure.structure_path.endswith(".pdb"):
+            html_path = out_dir / f"{stem}_{structure.entry.entry_id}.html"
+            write_structure_html(result, structure, html_path)
+            logger.info("3D viewer written to %s", html_path)
     return json_path
 
 
