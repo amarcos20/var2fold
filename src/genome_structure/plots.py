@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING
 
-from geneme_structure.models import ProteinFeature
+from genome_structure.models import ProteinFeature
 
 if TYPE_CHECKING:
     import pandas as pd

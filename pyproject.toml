@@ -3,7 +3,7 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "geneme-structure"
+name = "genome-structure"
 version = "0.1.0"
 description = "Link genetic variants to AlphaGenome regulatory predictions and AlphaFold DB 3D structures."
 readme = "README.md"
@@ -25,10 +25,10 @@ dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5"]
 notebook = ["matplotlib>=3.8", "ipykernel>=6.29", "nbclient>=0.10", "nbformat>=5.10", "papermill>=2.6", "nbconvert>=7.16"]
 
 [project.scripts]
-geneme-structure = "geneme_structure.pipeline:main"
+genome-structure = "genome_structure.pipeline:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/geneme_structure"]
+packages = ["src/genome_structure"]
 
 [tool.ruff]
 line-length = 100

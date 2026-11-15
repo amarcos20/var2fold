@@ -1,12 +1,12 @@
-# geneme-structure
+# genome-structure
 
-[![CI](https://github.com/amarcos20/geneme-structure/actions/workflows/ci.yml/badge.svg)](https://github.com/amarcos20/geneme-structure/actions/workflows/ci.yml)
+[![CI](https://github.com/amarcos20/genome-structure/actions/workflows/ci.yml/badge.svg)](https://github.com/amarcos20/genome-structure/actions/workflows/ci.yml)
 
 **From a genetic variant to its predicted regulatory effect to the 3D protein it hits, in one command.**
 
-**[Live demo: interactive 3D viewers and reports for BRCA1 and TP53](https://amarcos20.github.io/geneme-structure/)**
+**[Live demo: interactive 3D viewers and reports for BRCA1 and TP53](https://amarcos20.github.io/genome-structure/)**
 
-`geneme-structure` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
+`genome-structure` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
 
 1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region. It also returns the allele-specific ClinVar significance, rsID and gnomAD frequency.
 2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) scores the variant with the model's recommended variant scorers (expression, chromatin accessibility, histone marks, TF binding, methylation, splicing, 3D contacts) over up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
@@ -67,7 +67,7 @@ flowchart LR
 ## Installation
 
 ```bash
-git clone <your-fork-url> geneme-structure && cd geneme-structure
+git clone <your-fork-url> genome-structure && cd genome-structure
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[alphagenome,dev]"    # add ,notebook for the notebooks (matplotlib, papermill)
 
@@ -82,32 +82,32 @@ You can request a free non-commercial AlphaGenome API key at <https://deepmind.g
 
 ```bash
 # TP53 R175H hotspot: regulatory effect in transverse colon + AlphaFold model
-geneme-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
+genome-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
 
 # ...also summarise raw REF/ALT RNA-seq and DNase tracks
-geneme-structure variant 'chr17:7675088:C>T' --outputs RNA_SEQ DNASE
+genome-structure variant 'chr17:7675088:C>T' --outputs RNA_SEQ DNASE
 
 # Compare conditions side by side: colon, liver, blood CD14+ monocytes
-geneme-structure variant 'chr17:7675088:C>T' \
+genome-structure variant 'chr17:7675088:C>T' \
     -c UBERON:0001157 -c UBERON:0002107 -c UBERON:0000178_CL:0001054
 
 # Protein-coding genes in a region, their predicted signal, and structures
-geneme-structure region chr17:7668421-7687490 --max-genes 5
+genome-structure region chr17:7668421-7687490 --max-genes 5
 
 # Batch: every variant in a VCF -> one summary table (VEP annotation is batched)
-geneme-structure vcf examples/tp53_hotspots.vcf --max-variants 25
+genome-structure vcf examples/tp53_hotspots.vcf --max-variants 25
 
 # Start from a gene: its 10 most trusted pathogenic missense variants in ClinVar
-geneme-structure gene BRCA1 --max-variants 10
+genome-structure gene BRCA1 --max-variants 10
 
 # ...or splice-site variants, where AlphaGenome is most informative
-geneme-structure gene CFTR --consequence splice --max-variants 10
+genome-structure gene CFTR --consequence splice --max-variants 10
 
 # Structure only (no API key required)
-geneme-structure structure P04637 --residue 175
+genome-structure structure P04637 --residue 175
 
 # Annotation + structure, skipping AlphaGenome
-geneme-structure variant 'chr17:7675088:C>T' --no-alphagenome
+genome-structure variant 'chr17:7675088:C>T' --no-alphagenome
 ```
 
 Each run prints a summary and writes:
@@ -125,9 +125,9 @@ Each run prints a summary and writes:
 ### Python API
 
 ```python
-from geneme_structure.config import Settings
-from geneme_structure.models import GenomicVariant
-from geneme_structure.pipeline import GenomeToStructurePipeline
+from genome_structure.config import Settings
+from genome_structure.models import GenomicVariant
+from genome_structure.pipeline import GenomeToStructurePipeline
 
 pipeline = GenomeToStructurePipeline(Settings.from_env())
 result = pipeline.run_variant(
@@ -196,15 +196,15 @@ Each page shows the generation date and the versions used (Ensembl release, Alph
 | Variable | Default | Purpose |
 |---|---|---|
 | `ALPHAGENOME_API_KEY` | (required for predictions) | AlphaGenome API key |
-| `GENEME_CACHE_DIR` | `.cache` | AlphaGenome response cache |
-| `GENEME_DATA_DIR` | `data` | Downloaded structures |
-| `GENEME_HTTP_TIMEOUT` | `30` | REST timeout (seconds) |
+| `GENOME_CACHE_DIR` | `.cache` | AlphaGenome response cache |
+| `GENOME_DATA_DIR` | `data` | Downloaded structures |
+| `GENOME_HTTP_TIMEOUT` | `30` | REST timeout (seconds) |
 | `NCBI_API_KEY` | (optional) | Raises the NCBI E-utilities limit for `gene` from 3 to 10 requests/s |
 
 ## Development
 
 ```bash
-pytest --cov=geneme_structure   # 81 offline tests, ~93% coverage, no network or API key
+pytest --cov=genome_structure   # 81 offline tests, ~93% coverage, no network or API key
 ruff check . && ruff format --check .
 ```
 

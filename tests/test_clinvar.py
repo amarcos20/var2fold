@@ -3,7 +3,7 @@
 import pytest
 from fakes import FakeResponse, FakeSession, clinvar_doc, eutils
 
-from geneme_structure.clinvar import (
+from genome_structure.clinvar import (
     ClinVarClient,
     allele_key,
     build_query,
@@ -14,8 +14,8 @@ from geneme_structure.clinvar import (
     spdi_to_vcf,
     write_vcf,
 )
-from geneme_structure.models import GenomicVariant, VariantAnnotation
-from geneme_structure.vcf import read_vcf
+from genome_structure.models import GenomicVariant, VariantAnnotation
+from genome_structure.vcf import read_vcf
 
 
 def test_build_query_filters():

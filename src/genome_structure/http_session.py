@@ -6,9 +6,9 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from geneme_structure import __version__
+from genome_structure import __version__
 
-USER_AGENT = f"geneme-structure/{__version__} (python-requests)"
+USER_AGENT = f"genome-structure/{__version__} (python-requests)"
 
 
 def build_session(total_retries: int = 4, backoff: float = 1.0) -> requests.Session:

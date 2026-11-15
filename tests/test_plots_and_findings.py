@@ -3,10 +3,10 @@
 import pandas as pd
 import pytest
 
-from geneme_structure.gene_mapping import parse_uniprot_features
-from geneme_structure.models import ProteinFeature
-from geneme_structure.pipeline import batch_findings
-from geneme_structure.plots import assign_rows, domain_lanes, group_labels
+from genome_structure.gene_mapping import parse_uniprot_features
+from genome_structure.models import ProteinFeature
+from genome_structure.pipeline import batch_findings
+from genome_structure.plots import assign_rows, domain_lanes, group_labels
 
 
 def test_group_labels_merges_shared_residue():
@@ -103,7 +103,7 @@ def test_figures_render():
     import matplotlib
 
     matplotlib.use("Agg")
-    from geneme_structure.plots import effects_panels, plddt_profile
+    from genome_structure.plots import effects_panels, plddt_profile
 
     plddt = {i: 90.0 if 20 < i < 60 else 40.0 for i in range(1, 101)}
     feats = [ProteinFeature(start=20, end=60, name="Core", kind="Domain")]

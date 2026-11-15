@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from geneme_structure.gene_mapping import parse_clinvar, parse_vep_record, vep_input_line
-from geneme_structure.models import (
+from genome_structure.gene_mapping import parse_clinvar, parse_vep_record, vep_input_line
+from genome_structure.models import (
     GenomicInterval,
     GenomicVariant,
     PipelineResult,
@@ -12,8 +12,8 @@ from geneme_structure.models import (
     VariantAnnotation,
     VariantScores,
 )
-from geneme_structure.pipeline import batch_table
-from geneme_structure.vcf import read_vcf
+from genome_structure.pipeline import batch_table
+from genome_structure.vcf import read_vcf
 
 VCF = """##fileformat=VCFv4.2
 #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
@@ -107,7 +107,7 @@ def test_parse_vep_record_prefers_canonical_swissprot():
 
 def test_batch_table_one_row_per_variant_and_condition():
     def scores(label: str, lfc: float) -> VariantScores:
-        from geneme_structure.alphagenome_client import summarize_scores
+        from genome_structure.alphagenome_client import summarize_scores
 
         recs = [
             ScoreRecord(

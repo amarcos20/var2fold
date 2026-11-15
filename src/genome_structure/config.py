@@ -48,9 +48,9 @@ class Settings(BaseModel):
         return cls(
             alphagenome_api_key=SecretStr(key) if key else None,
             ncbi_api_key=SecretStr(ncbi_key) if ncbi_key else None,
-            cache_dir=Path(os.getenv("GENEME_CACHE_DIR", ".cache")),
-            data_dir=Path(os.getenv("GENEME_DATA_DIR", "data")),
-            http_timeout=float(os.getenv("GENEME_HTTP_TIMEOUT", "30")),
+            cache_dir=Path(os.getenv("GENOME_CACHE_DIR", ".cache")),
+            data_dir=Path(os.getenv("GENOME_DATA_DIR", "data")),
+            http_timeout=float(os.getenv("GENOME_HTTP_TIMEOUT", "30")),
         )
 
     @property

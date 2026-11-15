@@ -3,25 +3,25 @@
 Examples
 --------
     # TP53 R175H hotspot (GRCh38), RNA-seq + DNase in transverse colon
-    geneme-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
+    genome-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
 
     # Compare tissues / cell types side by side
-    geneme-structure variant 'chr17:7675088:C>T' \\
+    genome-structure variant 'chr17:7675088:C>T' \\
         --condition UBERON:0001157 --condition UBERON:0002107 --condition UBERON:0000178_CL:0001054
 
     # All protein-coding genes in a region
-    geneme-structure region chr17:7668421-7687490 --condition UBERON:0001157
+    genome-structure region chr17:7668421-7687490 --condition UBERON:0001157
 
     # Batch: every variant in a VCF -> one summary table
-    geneme-structure vcf examples/tp53_hotspots.vcf --max-variants 10
+    genome-structure vcf examples/tp53_hotspots.vcf --max-variants 10
 
     # Start from a gene: known pathogenic ClinVar variants, most trusted first
-    geneme-structure gene BRCA1 --max-variants 10 --consequence missense
+    genome-structure gene BRCA1 --max-variants 10 --consequence missense
 
     # Structure only (no AlphaGenome key needed)
-    geneme-structure structure P04637 --residue 175
+    genome-structure structure P04637 --residue 175
 
-`python -m geneme_structure.pipeline ...` works too.
+`python -m genome_structure.pipeline ...` works too.
 """
 
 from __future__ import annotations
@@ -37,8 +37,8 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from geneme_structure.alphafold_client import AlphaFoldClient
-from geneme_structure.alphagenome_client import (
+from genome_structure.alphafold_client import AlphaFoldClient
+from genome_structure.alphagenome_client import (
     SUPPORTED_SEQUENCE_LENGTHS,
     TRACK_OUTPUT_TYPES,
     AlphaGenomeClient,
@@ -46,26 +46,26 @@ from geneme_structure.alphagenome_client import (
     ConditionLike,
     compare_conditions,
 )
-from geneme_structure.clinvar import (
+from genome_structure.clinvar import (
     CONSEQUENCE_SETS,
     SIGNIFICANCE_FILTERS,
     ClinVarClient,
     ClinVarVariant,
     write_vcf,
 )
-from geneme_structure.config import MissingCredentialError, Settings
-from geneme_structure.gene_mapping import GeneMapper
-from geneme_structure.models import (
+from genome_structure.config import MissingCredentialError, Settings
+from genome_structure.gene_mapping import GeneMapper
+from genome_structure.models import (
     GenomicInterval,
     GenomicVariant,
     PipelineResult,
     VariantAnnotation,
     VariantScores,
 )
-from geneme_structure.report import write_structure_html
-from geneme_structure.vcf import VcfRecord, read_vcf
+from genome_structure.report import write_structure_html
+from genome_structure.vcf import VcfRecord, read_vcf
 
-logger = logging.getLogger("geneme_structure")
+logger = logging.getLogger("genome_structure")
 
 DEFAULT_CONDITIONS: tuple[str, ...] = ("UBERON:0001157",)  # transverse colon
 MAX_REGION_GENES = 10
@@ -549,7 +549,7 @@ def _add_prediction_args(p: argparse.ArgumentParser, default_outputs: list[str])
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="geneme-structure",
+        prog="genome-structure",
         description="Link variants/regions to AlphaGenome predictions and AlphaFold DB structures.",
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Debug logging")
@@ -658,8 +658,8 @@ def _write_batch(
     clinvar_date: str | None = None,
 ) -> int:
     # Local imports: gene_viewer imports this module.
-    from geneme_structure.gene_viewer import write_gene_html
-    from geneme_structure.provenance import collect_provenance
+    from genome_structure.gene_viewer import write_gene_html
+    from genome_structure.provenance import collect_provenance
 
     out_dir: Path = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)

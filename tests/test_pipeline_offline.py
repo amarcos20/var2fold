@@ -7,11 +7,11 @@ import pandas as pd
 import pytest
 from fakes import AF_ENTRY, TOY_PDB, FakeResponse, FakeSession, clinvar_doc, eutils, vep_echo
 
-from geneme_structure import alphafold_client, clinvar, gene_mapping
-from geneme_structure.alphagenome_client import AlphaGenomeClient, summarize_scores
-from geneme_structure.config import Settings
-from geneme_structure.models import GenomicVariant, ScoreRecord, VariantScores
-from geneme_structure.pipeline import GenomeToStructurePipeline, main, write_report
+from genome_structure import alphafold_client, clinvar, gene_mapping
+from genome_structure.alphagenome_client import AlphaGenomeClient, summarize_scores
+from genome_structure.config import Settings
+from genome_structure.models import GenomicVariant, ScoreRecord, VariantScores
+from genome_structure.pipeline import GenomeToStructurePipeline, main, write_report
 
 VEP_TP53 = {
     "allele_string": "C/T",
@@ -186,7 +186,7 @@ def test_raw_track_predictions(tmp_path):
     pytest.importorskip("alphagenome")
     from types import SimpleNamespace
 
-    from geneme_structure.models import GenomicInterval
+    from genome_structure.models import GenomicInterval
 
     class FakeModel:
         def predict_variant(self, interval, variant, condition, requested_outputs):
@@ -216,8 +216,8 @@ def test_raw_track_predictions(tmp_path):
 
 
 def test_run_region_and_summary(settings, capsys):
-    from geneme_structure.models import GenomicInterval
-    from geneme_structure.pipeline import print_summary
+    from genome_structure.models import GenomicInterval
+    from genome_structure.pipeline import print_summary
 
     session = _session()
     session.add(
