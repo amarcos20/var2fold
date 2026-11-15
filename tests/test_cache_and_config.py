@@ -53,7 +53,7 @@ def test_cache_hit_skips_api(tmp_path):
             tracks=[],
         )
 
-    payload = {"query": str(GenomicVariant.parse("chr1:100:A>G")), "k": 1}
+    payload = {"kind": "test", "query": str(GenomicVariant.parse("chr1:100:A>G"))}
     first = client._cached_or_call(payload, fake_call)
     second = client._cached_or_call(payload, fake_call)
     assert len(calls) == 1 and not first.from_cache and second.from_cache

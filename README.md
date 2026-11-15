@@ -5,7 +5,7 @@
 `geneme-structure` links three data sources:
 
 1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region.
-2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) predicts REF vs ALT regulatory tracks (RNA-seq, CAGE, DNase, ATAC, ChIP, splicing) across up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
+2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) scores the variant with the model's recommended variant scorers (expression, chromatin accessibility, histone marks, TF binding, methylation, splicing, 3D contacts) over up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
 3. **[AlphaFold Protein Structure Database](https://alphafold.ebi.ac.uk)** (EMBL-EBI) supplies the predicted 3D structure, with per-residue pLDDT confidence at the mutated residue.
 
 ## Architecture
@@ -25,7 +25,7 @@ flowchart LR
     AF -->|PDB/mmCIF| FILES[[data/structures]]
     AF -->|Bio.PDB pLDDT| P
 
-    P --> OUT["results/*.json<br/>results/*_tracks.csv"]
+    P --> OUT["results/*.json<br/>results/*_scores.csv"]
 ```
 
 | Module | Responsibility |
@@ -41,6 +41,8 @@ flowchart LR
 ### Design notes
 
 - **AlphaGenome has no public REST endpoint.** Access goes through the official `alphagenome` Python SDK (gRPC, `alphagenome.models.v2`). The SDK is an optional extra, imported lazily, so the structure and annotation features work without it.
+- **Variant scores vs raw tracks:** the headline numbers come from `score_variant` with AlphaGenome's recommended scorers. These are the model's own recipes, e.g. a log2 ratio in a 501 bp window around the variant, or gene-level log fold change. The summary keeps the strongest score per (output type, scorer) and separates *effect* scorers (ALT vs REF) from *activity* scorers (max of REF/ALT). `--outputs` additionally summarises raw REF/ALT tracks.
+- **Windows match the SDK:** `GenomicInterval.resized` reproduces `genome.Interval.resize` exactly. AlphaGenome is not perfectly shift-invariant, so a 1 bp offset in the window would change the scores.
 - **Caching:** each AlphaGenome request is canonicalised (variant, window, ontology terms, outputs) and hashed with SHA-256. The reduced result is stored as JSON under `.cache/alphagenome/`. Repeated runs cost zero API quota. Pass `--no-cache` to force a live call.
 - **Conditions:** AlphaGenome 2 predicts for one *condition*, built from at most one ontology term per type. `--ontology UBERON:0000178 CL:0001054` becomes `'UBERON:0000178_CL:0001054'` (blood, CD14+ monocytes). To compare tissues, run separate queries; each is cached independently.
 - **Coordinates:** GRCh38 throughout. Variants are 1-based (VCF). Intervals are parsed from 1-based UCSC strings and stored 0-based half-open (BED/AlphaGenome).
@@ -64,7 +66,10 @@ You can request a free non-commercial AlphaGenome API key at <https://deepmind.g
 
 ```bash
 # TP53 R175H hotspot: regulatory effect in transverse colon + AlphaFold model
-geneme-structure variant 'chr17:7675088:C>T' --ontology UBERON:0001157 --outputs RNA_SEQ DNASE
+geneme-structure variant 'chr17:7675088:C>T' --ontology UBERON:0001157
+
+# ...also summarise raw REF/ALT RNA-seq and DNase tracks
+geneme-structure variant 'chr17:7675088:C>T' --outputs RNA_SEQ DNASE
 
 # Cell-type-specific condition (tissue + cell type)
 geneme-structure variant 'chr17:7675088:C>T' --ontology UBERON:0000178 CL:0001054
@@ -82,7 +87,8 @@ geneme-structure variant 'chr17:7675088:C>T' --no-alphagenome
 Each run prints a summary and writes:
 
 - `results/<query>.json`: the full validated `PipelineResult`
-- `results/<query>_tracks.csv`: a per-output-type AlphaGenome table (REF/ALT sums, log2FC, max |Δ|, top track)
+- `results/<query>_scores.csv`: every AlphaGenome variant score in tidy form (output type, scorer, track, gene, biosample, raw score)
+- `results/<query>_tracks.csv`: raw-track summaries when `--outputs` is given (REF/ALT sums, log2FC, max |Δ|, top track)
 - `data/structures/AF-<acc>-F1-model_v*.pdb`: the downloaded structure
 
 ### Python API
@@ -120,7 +126,8 @@ ruff check .
 ## Limitations
 
 - Human (GRCh38) only.
-- Track summaries are deliberately coarse (window sums and max |Δ|). For publication-grade variant effect scores, use AlphaGenome's `score_variant` with the recommended variant scorers.
+- The AlphaGenome 2 tidy output has raw scores only (no quantile normalisation), so magnitudes are comparable within a scorer but not across scorers.
+- Raw-track summaries (`--outputs`) are deliberately coarse (window sums and max |Δ|). Use the variant scores for interpretation.
 - AlphaFold DB models are monomer predictions. pLDDT measures model confidence, not the effect of the mutation.
 
 ## Licence & attribution
