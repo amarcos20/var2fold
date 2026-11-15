@@ -36,6 +36,7 @@ from geneme_structure.alphagenome_client import compare_conditions
 from geneme_structure.config import Settings
 from geneme_structure.models import GenomicVariant
 from geneme_structure.pipeline import GenomeToStructurePipeline, batch_table, write_report
+from geneme_structure.plots import effects_panels, plddt_profile
 
 logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings("ignore", message="IProgress not found")  # tqdm without ipywidgets
@@ -58,95 +59,21 @@ table[["label", "variant", "protein_change", "clinvar", "gnomad_af", "residue_pl
        "rna_lfc", "splicing", "accessibility"]]"""),
     md("""## 2. Where do the hotspots sit on the structure?
 
-AlphaFold writes pLDDT into the B-factor column of the model. Plotting it along the sequence shows p53's domain architecture: a disordered N-terminal transactivation and proline-rich region, the folded DNA-binding domain (~94–292) and the tetramerisation domain (~325–356). The bands are AlphaFold DB's confidence thresholds."""),
-    code("""INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-SERIES = "#2a78d6"  # single series: categorical slot 1
-BANDS = [(90, 100, "#0053D6", "very high"), (70, 90, "#65CBF3", "confident"),
-         (50, 70, "#FFDB13", "low"), (0, 50, "#FF7D45", "very low")]
-
-def style(ax):
-    ax.spines[["top", "right"]].set_visible(False)
-    ax.spines[["left", "bottom"]].set_color(GRID)
-    ax.tick_params(colors=MUTED, labelsize=9)
-    ax.grid(axis="y", color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
-
-structure = results[1].structures[0]  # R175H; all variants share the p53 model
+AlphaFold writes pLDDT into the B-factor column of the model. Plotting it along the sequence shows p53's domain architecture: a disordered N-terminal transactivation and proline-rich region, the folded DNA-binding domain (102–292) and the oligomerisation domain (325–356). The bands are AlphaFold DB's confidence thresholds; the domain bars come from UniProt."""),
+    code("""structure = results[1].structures[0]  # R175H; all variants share the p53 model
 plddt = AlphaFoldClient.residue_plddt(Path(structure.structure_path))
 hotspots = {r.vcf_id: r.structures[0].residue for r in results if r.structures}
+domains = pipeline.mapper.protein_features(structure.entry.uniprot_accession)  # UniProt
 
-fig, ax = plt.subplots(figsize=(10, 3.6), dpi=150)
-for lo, hi, colour, name in BANDS:
-    ax.axhspan(lo, hi, color=colour, alpha=0.12, linewidth=0)
-    ax.text(max(plddt) + 4, (lo + hi) / 2, name, va="center", fontsize=8, color=MUTED)
-ax.plot(list(plddt), list(plddt.values()), color=SERIES, linewidth=2)
-
-# Group variants sharing a residue (R248Q/W), then label below the curve on
-# three staggered rows with leader lines: the DBD hotspots are too close for inline labels.
-by_residue = {}
-for label, residue in hotspots.items():
-    by_residue.setdefault(residue, []).append(label)
-rows = [62, 54, 46]  # below the DBD curve, which never dips under ~68
-for i, (residue, labels) in enumerate(sorted(by_residue.items())):
-    y = plddt[residue]
-    name = labels[0] if len(labels) == 1 else labels[0][:-1] + "/".join(lab[-1] for lab in labels)
-    ax.plot(residue, y, "o", markersize=7, color=SERIES, markeredgecolor="white",
-            markeredgewidth=2, zorder=3)
-    if y < 70:  # outside the folded domain: room to label inline
-        ax.annotate(name, (residue, y), xytext=(0, 10), textcoords="offset points",
-                    ha="center", fontsize=8, color=INK)
-        continue
-    ly = rows[i % len(rows)]
-    ax.plot([residue, residue], [ly + 3, y - 2], color=MUTED, linewidth=0.8, zorder=2)
-    ax.text(residue, ly, name, ha="center", va="top", fontsize=8, color=INK)
-
-# Domain architecture (UniProt P04637 annotations, approximate boundaries)
-for start, end, name in [(1, 61, "Transactivation"), (64, 92, "Pro-rich"),
-                         (94, 292, "DNA-binding domain"), (325, 356, "Tetramerisation")]:
-    ax.plot([start, end], [8, 8], color=MUTED, linewidth=2, solid_capstyle="butt")
-    ax.text((start + end) / 2, 11, name, ha="center", va="bottom", fontsize=8, color=MUTED)
-
-ax.set_xlim(1, max(plddt))
-ax.set_ylim(0, 105)
-ax.set_xlabel("Residue", color=MUTED, fontsize=9)
-ax.set_ylabel("pLDDT", color=MUTED, fontsize=9)
-ax.set_title("p53 AlphaFold confidence along the sequence, with the variants analysed",
-             loc="left", fontsize=11, color=INK)
-style(ax)
-fig.tight_layout()
+fig = plddt_profile(plddt, hotspots, domains,
+                    title="p53 AlphaFold confidence along the sequence, with the variants analysed")
 fig.savefig(ROOT / "docs" / "img" / "tp53_plddt_profile.png", bbox_inches="tight")
 plt.show()"""),
     md("""## 3. How large are the predicted regulatory effects?
 
 Each panel shows one representative AlphaGenome scorer (strongest signed effect over the colon tracks). The scorers have different scales, so compare variants **within** a panel, never across panels."""),
-    code("""panels = [("rna_lfc", "Expression (RNA-seq gene LFC)"),
-          ("splicing", "Splicing (strongest splice scorer)"),
-          ("accessibility", "Accessibility (DNase/ATAC log2 ratio)")]
-order = table.sort_values("variant")["label"].tolist()[::-1]
-data = table.set_index("label").loc[order]
-
-fig, axes = plt.subplots(1, 3, figsize=(11, 3.8), dpi=150, sharey=True)
-for ax, (col, title) in zip(axes, panels, strict=True):
-    values = data[col]
-    ax.axvline(0, color=MUTED, linewidth=1)
-    ax.hlines(range(len(values)), 0, values, color=SERIES, linewidth=2)
-    ax.plot(values, range(len(values)), "o", markersize=7, color=SERIES,
-            markeredgecolor="white", markeredgewidth=2)
-    top = values.abs().idxmax()
-    side = 1 if values[top] >= 0 else -1  # label beyond the dot, away from its stem
-    ax.annotate(f"{values[top]:+.3f}", (values[top], order.index(top)), xytext=(7 * side, 0),
-                textcoords="offset points", va="center", ha="left" if side > 0 else "right",
-                fontsize=8, color=INK)
-    ax.set_title(title, loc="left", fontsize=10, color=INK)
-    ax.set_yticks(range(len(order)), order)
-    lim = values.abs().max() * 1.5
-    ax.set_xlim(-lim, lim)
-    style(ax)
-    ax.grid(axis="y", visible=False)
-    ax.grid(axis="x", color=GRID, linewidth=0.8)
-fig.suptitle("AlphaGenome effect scores, transverse colon, 1 Mb context", x=0.01, ha="left",
-             fontsize=11, color=INK)
-fig.tight_layout()
+    code("""ordered = table.sort_values("variant")  # genomic order
+fig = effects_panels(ordered, title="AlphaGenome effect scores, transverse colon, 1 Mb context")
 fig.savefig(ROOT / "docs" / "img" / "tp53_effects.png", bbox_inches="tight")
 plt.show()"""),
     md("""## 4. Is the hotspot's regulatory effect tissue-specific?

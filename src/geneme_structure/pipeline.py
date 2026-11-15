@@ -15,6 +15,9 @@ Examples
     # Batch: every variant in a VCF -> one summary table
     geneme-structure vcf examples/tp53_hotspots.vcf --max-variants 10
 
+    # Start from a gene: known pathogenic ClinVar variants, most trusted first
+    geneme-structure gene BRCA1 --max-variants 10 --consequence missense
+
     # Structure only (no AlphaGenome key needed)
     geneme-structure structure P04637 --residue 175
 
@@ -41,6 +44,13 @@ from geneme_structure.alphagenome_client import (
     ConditionLike,
     compare_conditions,
 )
+from geneme_structure.clinvar import (
+    CONSEQUENCE_SETS,
+    SIGNIFICANCE_FILTERS,
+    ClinVarClient,
+    ClinVarVariant,
+    write_vcf,
+)
 from geneme_structure.config import MissingCredentialError, Settings
 from geneme_structure.gene_mapping import GeneMapper
 from geneme_structure.models import (
@@ -51,7 +61,7 @@ from geneme_structure.models import (
     VariantScores,
 )
 from geneme_structure.report import write_structure_html
-from geneme_structure.vcf import read_vcf
+from geneme_structure.vcf import VcfRecord, read_vcf
 
 logger = logging.getLogger("geneme_structure")
 
@@ -74,6 +84,11 @@ class GenomeToStructurePipeline:
         self.settings = settings
         self.mapper = GeneMapper(timeout=settings.http_timeout)
         self.alphafold = AlphaFoldClient(settings.data_dir, timeout=settings.http_timeout)
+        self.clinvar = ClinVarClient(
+            timeout=settings.http_timeout,
+            session=self.mapper.session,
+            api_key=settings.ncbi_api_key.get_secret_value() if settings.ncbi_api_key else None,
+        )
         self.alphagenome: AlphaGenomeClient | None = None
         if use_alphagenome:
             self.alphagenome = AlphaGenomeClient(
@@ -194,6 +209,43 @@ class GenomeToStructurePipeline:
         records = list(read_vcf(path, max_variants=max_variants))
         if not records:
             raise ValueError(f"No scorable variants in {path}")
+        return self.run_records(records, conditions, score=score)
+
+    def run_gene(
+        self,
+        gene: str,
+        conditions: Sequence[ConditionLike] = DEFAULT_CONDITIONS,
+        *,
+        consequence: str = "missense",
+        significance: Sequence[str] = ("pathogenic", "likely_pathogenic"),
+        max_variants: int | None = MAX_VCF_VARIANTS,
+        score: bool = True,
+    ) -> tuple[list[ClinVarVariant], list[PipelineResult]]:
+        """Known ClinVar variants for a gene -> the full pipeline for each.
+
+        Returns the ClinVar selection too, so it can be saved as a VCF and re-run.
+        """
+        selection = self.clinvar.variants_for_gene(
+            gene, consequence=consequence, significance=significance, max_variants=max_variants
+        )
+        if not selection:
+            raise ValueError(
+                f"No ClinVar variants for {gene!r} with consequence={consequence!r} and "
+                f"significance={','.join(significance)}"
+            )
+        records = [
+            VcfRecord(variant=cv.variant, vcf_id=cv.label, line_no=i)
+            for i, cv in enumerate(selection, 1)
+        ]
+        return selection, self.run_records(records, conditions, score=score)
+
+    def run_records(
+        self,
+        records: Sequence[VcfRecord],
+        conditions: Sequence[ConditionLike] = DEFAULT_CONDITIONS,
+        score: bool = True,
+    ) -> list[PipelineResult]:
+        """Run a batch of variants. VEP annotation is batched; failures are per variant."""
         annotations = self.mapper.annotate_variants([r.variant for r in records])
 
         results: list[PipelineResult] = []
@@ -244,7 +296,8 @@ def batch_table(results: Sequence[PipelineResult]) -> pd.DataFrame:
             "vcf_id": r.vcf_id,
             "rsid": a.rsid,
             "gene": a.gene_symbol,
-            "consequence": a.most_severe_consequence,
+            # All terms of the chosen transcript (VEP style), e.g. missense&splice_region
+            "consequence": "&".join(a.consequence_terms) or a.most_severe_consequence,
             "protein_change": (
                 f"{a.amino_acids}@{a.protein_position}" if a.protein_position else None
             ),
@@ -270,6 +323,69 @@ def batch_table(results: Sequence[PipelineResult]) -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows)
+
+
+EFFECT_COLUMNS = {
+    "rna_lfc": "expression effect (RNA-seq gene LFC)",
+    "splicing": "splicing effect",
+    "accessibility": "accessibility effect (DNase/ATAC)",
+}
+
+
+def batch_findings(table: pd.DataFrame, label_col: str = "vcf_id") -> list[str]:
+    """Plain, data-driven sentences describing a `batch_table` (no biological claims).
+
+    Used by the generic gene notebook so its conclusions follow the data for any gene.
+    """
+    if table.empty:
+        return ["No variants were analysed."]
+    labels = table[label_col].fillna(table["variant"]) if label_col in table else table["variant"]
+    table = table.assign(_label=labels)
+    per_variant = table.drop_duplicates("_label")
+    out = [f"{len(per_variant)} variant(s) analysed."]
+
+    plddt = per_variant["residue_plddt"].dropna() if "residue_plddt" in per_variant else []
+    if len(plddt):
+        bands = {
+            "very high (>90)": int((plddt > 90).sum()),
+            "confident (70-90)": int(((plddt > 70) & (plddt <= 90)).sum()),
+            "low or very low (<=70)": int((plddt <= 70).sum()),
+        }
+        counts = ", ".join(f"{n} {band}" for band, n in bands.items() if n)
+        out.append(
+            f"AlphaFold confidence at the mutated residue ({len(plddt)} with a structure): "
+            f"{counts}; median pLDDT {plddt.median():.1f}."
+        )
+    else:
+        out.append("No AlphaFold structure covered these variants.")
+
+    for col, name in EFFECT_COLUMNS.items():
+        if col not in table or table[col].dropna().empty:
+            continue
+        # One condition at a time keeps scores comparable; use the first one.
+        first = table[table["condition"] == table["condition"].dropna().iloc[0]]
+        values = first.set_index("_label")[col].dropna()
+        ranked = values.abs().sort_values(ascending=False)
+        top = ranked.index[0]
+        sentence = (
+            f"Strongest {name}: {top} ({values[top]:+.3f}); "
+            f"median |score| {ranked.median():.3f} across {len(ranked)} variant(s)"
+        )
+        if len(ranked) > 2 and ranked.iloc[0] > 2 * ranked.iloc[1]:
+            second = ranked.index[1]
+            sentence += f", more than twice the next ({second}, {values[second]:+.3f})"
+        if col == "splicing" and "consequence" in first:
+            terms = first.set_index("_label")["consequence"].fillna("")
+            top3 = list(ranked.index[:3])
+            near_sites = [lab for lab in top3 if "splice" in terms.get(lab, "")]
+            if near_sites:
+                sentence += (
+                    f". Of the top {len(top3)}, {', '.join(near_sites)} "
+                    f"{'is' if len(near_sites) == 1 else 'are'} annotated by VEP as "
+                    "splice-region variant(s), an independent hint that the score is not noise"
+                )
+        out.append(sentence + ".")
+    return out
 
 
 # --------------------------------------------------------------------------- reporting
@@ -437,6 +553,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_prediction_args(pb, default_outputs=[])
 
+    pg = sub.add_parser(
+        "gene", help="Analyse known pathogenic ClinVar variants of a gene, e.g. BRCA1"
+    )
+    pg.add_argument("gene", help="HGNC gene symbol")
+    pg.add_argument(
+        "--consequence",
+        choices=sorted(CONSEQUENCE_SETS),
+        default="missense",
+        help="Which ClinVar variants to include (default: %(default)s)",
+    )
+    pg.add_argument(
+        "--significance",
+        default="pathogenic,likely_pathogenic",
+        help=f"Comma-separated subset of {','.join(SIGNIFICANCE_FILTERS)} (default: %(default)s)",
+    )
+    pg.add_argument(
+        "--max-variants",
+        type=int,
+        default=MAX_VCF_VARIANTS,
+        help="Most trusted N variants (review status); each costs AlphaGenome calls "
+        "(default: %(default)s)",
+    )
+    pg.add_argument(
+        "--reports", action="store_true", help="Also write per-variant JSON/CSV/HTML reports"
+    )
+    pg.add_argument(
+        "--no-scores", action="store_true", help="Skip AlphaGenome recommended variant scorers"
+    )
+    _add_prediction_args(pg, default_outputs=[])
+
     ps = sub.add_parser("structure", help="Fetch an AlphaFold DB model by UniProt accession")
     ps.add_argument("uniprot")
     ps.add_argument("--residue", type=int, help="Report pLDDT at this residue")
@@ -451,18 +597,39 @@ def _run_vcf_command(pipeline: GenomeToStructurePipeline, args: argparse.Namespa
         max_variants=args.max_variants,
         score=not args.no_scores,
     )
+    return _write_batch(results, report_stem(args.vcf.name), args)
+
+
+def _run_gene_command(pipeline: GenomeToStructurePipeline, args: argparse.Namespace) -> int:
+    significance = [s.strip() for s in args.significance.split(",") if s.strip()]
+    selection, results = pipeline.run_gene(
+        args.gene,
+        args.conditions or DEFAULT_CONDITIONS,
+        consequence=args.consequence,
+        significance=significance,
+        max_variants=args.max_variants,
+        score=not args.no_scores,
+    )
+    stem = f"{report_stem(args.gene)}_clinvar_{args.consequence}"
+    vcf_path = write_vcf(selection, args.out_dir / f"{stem}.vcf")
+    logger.info("ClinVar selection saved to %s (re-run it with the `vcf` command)", vcf_path)
+    return _write_batch(results, stem, args)
+
+
+def _write_batch(results: list[PipelineResult], stem: str, args: argparse.Namespace) -> int:
     out_dir: Path = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     if args.reports:
         for result in results:
-            write_report(result, out_dir / report_stem(args.vcf.name))
+            write_report(result, out_dir / stem)
     table = batch_table(results)
-    csv_path = out_dir / f"{report_stem(args.vcf.name)}_summary.csv"
+    csv_path = out_dir / f"{stem}_summary.csv"
     table.to_csv(csv_path, index=False)
 
     cols = [
         c
         for c in (
+            "vcf_id",
             "variant",
             "gene",
             "protein_change",
@@ -512,6 +679,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if args.command == "vcf":
                 return _run_vcf_command(pipeline, args)
+            if args.command == "gene":
+                return _run_gene_command(pipeline, args)
             if args.command == "variant":
                 result = pipeline.run_variant(
                     args.variant,

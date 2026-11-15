@@ -14,6 +14,7 @@ class FakeResponse:
     status_code: int = 200
     payload: Any = None
     content: bytes = b""
+    text: str = ""
 
     def json(self) -> Any:
         return self.payload
@@ -91,3 +92,51 @@ AF_ENTRY = {
     "pdbUrl": "https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.pdb",
     "cifUrl": "https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v6.cif",
 }
+
+
+def clinvar_doc(
+    uid: str,
+    spdi: str,
+    *,
+    protein: str = "R2H",
+    gene: str = "TP53",
+    classification: str = "Pathogenic",
+    review: str = "reviewed by expert panel",
+    chrom: str = "17",
+    consequences: tuple[str, ...] = ("missense variant",),
+) -> dict[str, Any]:
+    """Minimal ClinVar esummary document."""
+    return {
+        "uid": uid,
+        "accession": f"VCV{int(uid):09d}",
+        "title": f"NM_000546.6({gene}):c.x (p.{protein})",
+        "protein_change": protein,
+        "genes": [{"symbol": gene}],
+        "molecular_consequence_list": list(consequences),
+        "germline_classification": {"description": classification, "review_status": review},
+        "variation_set": [
+            {
+                "canonical_spdi": spdi,
+                "variation_loc": [
+                    {"assembly_name": "GRCh38", "chr": chrom, "start": "1", "stop": "1"},
+                    {"assembly_name": "GRCh37", "chr": chrom, "start": "9", "stop": "9"},
+                ],
+            }
+        ],
+    }
+
+
+def eutils(docs: list[dict[str, Any]]) -> Handler:
+    """E-utilities handler: esearch returns every uid, esummary the requested docs."""
+    by_uid = {d["uid"]: d for d in docs}
+
+    def handler(method: str, url: str, kwargs: dict[str, Any]) -> FakeResponse:
+        if "esearch" in url:
+            ids = list(by_uid)
+            return FakeResponse(payload={"esearchresult": {"count": str(len(ids)), "idlist": ids}})
+        wanted = kwargs["data"]["id"].split(",")
+        result: dict[str, Any] = {"uids": wanted}
+        result.update({u: by_uid[u] for u in wanted})
+        return FakeResponse(payload={"result": result})
+
+    return handler

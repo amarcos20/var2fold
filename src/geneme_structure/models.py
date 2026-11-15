@@ -286,6 +286,15 @@ class StructureResult(_Base):
     residue_confidence: str | None = None
 
 
+class ProteinFeature(_Base):
+    """A UniProt sequence feature (domain, DNA-binding region, zinc finger...), 1-based."""
+
+    start: int = Field(ge=1)
+    end: int = Field(ge=1)
+    name: str
+    kind: str
+
+
 def plddt_band(score: float) -> str:
     """AlphaFold DB confidence bands."""
     if score > 90:

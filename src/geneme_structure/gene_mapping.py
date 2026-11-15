@@ -14,7 +14,12 @@ from typing import Any
 import requests
 
 from geneme_structure.http_session import build_session
-from geneme_structure.models import GenomicInterval, GenomicVariant, VariantAnnotation
+from geneme_structure.models import (
+    GenomicInterval,
+    GenomicVariant,
+    ProteinFeature,
+    VariantAnnotation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +28,9 @@ UNIPROT_REST = "https://rest.uniprot.org"
 MAX_OVERLAP_BP = 5_000_000  # Ensembl overlap endpoint limit
 VEP_BATCH_SIZE = 200  # Ensembl VEP POST limit
 VEP_OPTIONS = {"uniprot": 1, "canonical": 1}
+# UniProt feature types that describe domain architecture (Region is filtered further).
+DOMAIN_FEATURE_TYPES = ("Domain", "DNA binding", "Zinc finger", "Region")
+_REGION_NOISE = ("interaction", "required for", "disordered", "necessary for")
 
 
 class GeneMapper:
@@ -102,6 +110,37 @@ class GeneMapper:
         resp.raise_for_status()
         results = resp.json().get("results", [])
         return results[0]["primaryAccession"] if results else None
+
+    def protein_features(self, accession: str) -> list[ProteinFeature]:
+        """Domain architecture of a UniProt entry (domains, DNA-binding, zinc fingers...)."""
+        resp = self.session.get(
+            f"{UNIPROT_REST}/uniprotkb/{accession}.json",
+            params={"fields": "ft_domain,ft_region,ft_dna_bind,ft_zn_fing"},
+            timeout=self.timeout,
+        )
+        resp.raise_for_status()
+        return parse_uniprot_features(resp.json())
+
+
+def parse_uniprot_features(entry: dict[str, Any]) -> list[ProteinFeature]:
+    """Keep architectural features; drop interaction/disorder 'Region' annotations.
+
+    Disorder is left out on purpose: the pLDDT profile already shows it.
+    """
+    out: list[ProteinFeature] = []
+    for f in entry.get("features") or []:
+        kind = f.get("type")
+        if kind not in DOMAIN_FEATURE_TYPES:
+            continue
+        name = (f.get("description") or "").strip() or kind
+        if kind == "Region" and name.lower().startswith(_REGION_NOISE):
+            continue
+        loc = f.get("location") or {}
+        start = (loc.get("start") or {}).get("value")
+        end = (loc.get("end") or {}).get("value")
+        if isinstance(start, int) and isinstance(end, int) and end >= start:
+            out.append(ProteinFeature(start=start, end=end, name=name, kind=kind))
+    return sorted(out, key=lambda x: (x.start, x.end))
 
 
 # --------------------------------------------------------------------------- VEP parsing
