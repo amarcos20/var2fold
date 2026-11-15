@@ -8,6 +8,8 @@
 2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) scores the variant with the model's recommended variant scorers (expression, chromatin accessibility, histone marks, TF binding, methylation, splicing, 3D contacts) over up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
 3. **[AlphaFold Protein Structure Database](https://alphafold.ebi.ac.uk)** (EMBL-EBI) supplies the predicted 3D structure, with per-residue pLDDT confidence at the mutated residue.
 
+![3D viewer for TP53 R175H: AlphaFold model coloured by pLDDT, Arg175 highlighted, AlphaGenome effect scores alongside](docs/img/tp53_r175h_viewer.png)
+
 ## Architecture
 
 ```mermaid
@@ -24,8 +26,9 @@ flowchart LR
     AF -->|/api/prediction| AFDB[(AlphaFold DB)]
     AF -->|PDB/mmCIF| FILES[[data/structures]]
     AF -->|Bio.PDB pLDDT| P
+    P --> R["ReportWriter<br/>report.py · 3Dmol.js"]
 
-    P --> OUT["results/*.json<br/>results/*_scores.csv"]
+    P --> OUT["results/*.json · *_scores.csv<br/>*.html 3D viewer"]
 ```
 
 | Module | Responsibility |
@@ -36,6 +39,7 @@ flowchart LR
 | `alphafold_client.py` | AlphaFold DB metadata, cached structure download, per-residue pLDDT parsing |
 | `gene_mapping.py` | Variant/region → gene → UniProt (Ensembl VEP, Ensembl overlap, UniProt search) |
 | `http_session.py` | Shared `requests` session that retries 429/5xx and honours `Retry-After` |
+| `report.py` | Self-contained HTML report: 3Dmol.js viewer coloured by pLDDT, mutated residue highlighted |
 | `pipeline.py` | Orchestration, reporting, and the CLI |
 
 ### Design notes
@@ -89,6 +93,7 @@ Each run prints a summary and writes:
 - `results/<query>.json`: the full validated `PipelineResult`
 - `results/<query>_scores.csv`: every AlphaGenome variant score in tidy form (output type, scorer, track, gene, biosample, raw score)
 - `results/<query>_tracks.csv`: raw-track summaries when `--outputs` is given (REF/ALT sums, log2FC, max |Δ|, top track)
+- `results/<query>_<AF entry>.html`: an interactive 3D viewer (open in any browser), with the structure embedded and coloured by pLDDT and the mutated residue highlighted
 - `data/structures/AF-<acc>-F1-model_v*.pdb`: the downloaded structure
 
 ### Python API
