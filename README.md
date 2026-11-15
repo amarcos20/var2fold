@@ -4,7 +4,7 @@
 
 **From a genetic variant to its predicted regulatory effect to the 3D protein it hits, in one command.**
 
-`geneme-structure` links three data sources:
+`geneme-structure` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
 
 1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region. It also returns the allele-specific ClinVar significance, rsID and gnomAD frequency.
 2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) scores the variant with the model's recommended variant scorers (expression, chromatin accessibility, histone marks, TF binding, methylation, splicing, 3D contacts) over up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
@@ -20,9 +20,11 @@ flowchart LR
     P --> GM["GeneMapper<br/>gene_mapping.py"]
     P --> AG["AlphaGenomeClient<br/>alphagenome_client.py"]
     P --> AF["AlphaFoldClient<br/>alphafold_client.py"]
+    P --> CV["ClinVarClient<br/>clinvar.py"]
+    CV -->|esearch / esummary| NCBI[(NCBI E-utilities)]
 
     GM -->|VEP / overlap| ENS[(Ensembl REST)]
-    GM -->|gene → accession| UP[(UniProt REST)]
+    GM -->|accession · domains| UP[(UniProt REST)]
     AG -->|gRPC via SDK| AGAPI[(AlphaGenome API)]
     AG <-->|sha256-keyed JSON| CACHE[[.cache/alphagenome]]
     AF -->|/api/prediction| AFDB[(AlphaFold DB)]
@@ -31,19 +33,22 @@ flowchart LR
     P --> R["ReportWriter<br/>report.py · 3Dmol.js"]
 
     P --> OUT["results/*.json · *_scores.csv<br/>*.html 3D viewer"]
+    P --> NB["plots.py<br/>gene_report.ipynb"]
 ```
 
 | Module | Responsibility |
 |---|---|
 | `config.py` | Reads settings strictly from env vars (`.env` via python-dotenv). The API key is held as a `SecretStr`. |
-| `models.py` | Pydantic models: `GenomicVariant`, `GenomicInterval`, `VariantAnnotation`, `VariantScores`/`ScorerSummary`, `TrackSummary`, `AlphaFoldEntry`, `PipelineResult` |
+| `models.py` | Pydantic models: `GenomicVariant`, `GenomicInterval`, `VariantAnnotation`, `VariantScores`/`ScorerSummary`, `TrackSummary`, `AlphaFoldEntry`, `ProteinFeature`, `PipelineResult` |
 | `alphagenome_client.py` | Wraps the official SDK (`score_variant`, `predict_variant`, `predict_interval`), adds a content-addressed JSON cache and a throttle, summarises scores per scorer and compares conditions |
 | `alphafold_client.py` | AlphaFold DB metadata, cached structure download, per-residue pLDDT parsing |
-| `gene_mapping.py` | Variant/region → gene → UniProt, plus ClinVar, rsID and gnomAD AF (batched Ensembl VEP, Ensembl overlap, UniProt search) |
+| `gene_mapping.py` | Variant/region → gene → UniProt, plus ClinVar, rsID and gnomAD AF (batched Ensembl VEP, Ensembl overlap, UniProt search) and UniProt domain architecture |
+| `clinvar.py` | Gene symbol → known ClinVar variants (NCBI E-utilities): SPDI → VCF coordinates, ranking by review status with ties spread along the gene, VCF export |
 | `vcf.py` | Dependency-free VCF reader (plain or gzip); splits multi-allelic records and skips symbolic ALTs |
 | `http_session.py` | Shared `requests` session that retries 429/5xx and honours `Retry-After` |
 | `report.py` | Self-contained HTML report: 3Dmol.js viewer coloured by pLDDT, mutated residue highlighted |
-| `pipeline.py` | Orchestration, reporting, and the CLI |
+| `plots.py` | Notebook figures: pLDDT profile with variants and domains (collision-free labels), AlphaGenome effect panels |
+| `pipeline.py` | Orchestration, batch summary and data-driven findings, reporting, and the CLI |
 
 ### Design notes
 
@@ -60,7 +65,7 @@ flowchart LR
 ```bash
 git clone <your-fork-url> geneme-structure && cd geneme-structure
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[alphagenome,dev]"    # add ,notebook to run the case-study notebook
+pip install -e ".[alphagenome,dev]"    # add ,notebook for the notebooks (matplotlib, papermill)
 
 cp .env.example .env    # then edit .env and set ALPHAGENOME_API_KEY
 ```
@@ -88,6 +93,12 @@ geneme-structure region chr17:7668421-7687490 --max-genes 5
 # Batch: every variant in a VCF -> one summary table (VEP annotation is batched)
 geneme-structure vcf examples/tp53_hotspots.vcf --max-variants 25
 
+# Start from a gene: its 10 most trusted pathogenic missense variants in ClinVar
+geneme-structure gene BRCA1 --max-variants 10
+
+# ...or splice-site variants, where AlphaGenome is most informative
+geneme-structure gene CFTR --consequence splice --max-variants 10
+
 # Structure only (no API key required)
 geneme-structure structure P04637 --residue 175
 
@@ -103,6 +114,7 @@ Each run prints a summary and writes:
 - `results/<query>_tracks.csv`: raw-track summaries when `--outputs` is given (REF/ALT sums, log2FC, max |Δ|, top track)
 - `results/<query>_<AF entry>.html`: an interactive 3D viewer (open in any browser), with the structure embedded and coloured by pLDDT and the mutated residue highlighted
 - `data/structures/AF-<acc>-F1-model_v*.pdb`: the downloaded structure
+- `gene` mode: `results/<GENE>_clinvar_<consequence>.vcf` (the exact selection, re-runnable with `vcf`) and `results/<GENE>_clinvar_<consequence>_summary.csv`
 - `vcf` mode: `results/<vcf>_summary.csv`, with one row per (variant, condition). Columns: gene, protein change, ClinVar, gnomAD AF, residue pLDDT, and representative RNA LFC, splicing and accessibility effects. Add `--reports` for per-variant JSON/HTML.
 
 ### Python API
@@ -142,6 +154,26 @@ for vs in result.variant_scores:
 
 All hotspots sit in the confidently predicted DNA-binding domain, which fits a structural mechanism. Predicted regulatory effects are small, with one exception: Y220C's splicing score, a testable hypothesis rather than a finding. The notebook discusses the results and their caveats.
 
+### Any gene: the gene report notebook
+
+[`notebooks/gene_report.ipynb`](notebooks/gene_report.ipynb) is a parameterised template. It runs the `gene` workflow and draws the figures, and it writes the conclusions from the data, so it works for any gene without editing:
+
+```bash
+papermill notebooks/gene_report.ipynb results/BRCA1_report.ipynb -p gene BRCA1 -p max_variants 10
+papermill notebooks/gene_report.ipynb results/CFTR_report.ipynb -p gene CFTR -p consequence splice
+papermill notebooks/gene_report.ipynb results/BRAF_report.ipynb -p gene BRAF -p use_alphagenome False
+```
+
+Parameters: `gene`, `consequence` (`missense`, `coding`, `splice`, `any`), `significance`, `max_variants`, `conditions`, `sequence_length`, `use_alphagenome`, `out_dir`. Protein domains come from UniProt automatically.
+
+**Executed example:** [`notebooks/examples/BRCA1_report.ipynb`](notebooks/examples/BRCA1_report.ipynb), with 10 expert-panel pathogenic missense variants.
+
+![pLDDT along BRCA1 with the ClinVar variants and UniProt domains](docs/img/brca1_plddt_profile.png)
+
+![AlphaGenome effect scores for the BRCA1 variants](docs/img/brca1_effects.png)
+
+All ten variants are coding missense changes. Most sit in the folded RING and BRCT domains (median pLDDT 93.7). Two of them, D1692H (+9.6) and E1559K (+8.3), get splicing scores roughly 40× the median. Both sit on the last base of an exon, and VEP independently annotates exactly these two as `splice_region_variant`. The model is flagging variants whose damage may come from mis-splicing as well as from the amino-acid change. This is a prediction to check against RNA evidence, not a classification.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -150,19 +182,21 @@ All hotspots sit in the confidently predicted DNA-binding domain, which fits a s
 | `GENEME_CACHE_DIR` | `.cache` | AlphaGenome response cache |
 | `GENEME_DATA_DIR` | `data` | Downloaded structures |
 | `GENEME_HTTP_TIMEOUT` | `30` | REST timeout (seconds) |
+| `NCBI_API_KEY` | (optional) | Raises the NCBI E-utilities limit for `gene` from 3 to 10 requests/s |
 
 ## Development
 
 ```bash
-pytest --cov=geneme_structure   # 51 offline tests, ~91% coverage, no network or API key
+pytest --cov=geneme_structure   # 76 offline tests, ~93% coverage, no network or API key
 ruff check . && ruff format --check .
 ```
 
-Every HTTP dependency (Ensembl, UniProt, AlphaFold DB) is replaced by a recording `FakeSession` (`tests/fakes.py`), and the AlphaGenome model by small fakes. The suite therefore covers the end-to-end pipeline and CLI, batching, caching and error paths deterministically. CI (`.github/workflows/ci.yml`) runs lint and tests on Python 3.11 to 3.14.
+Every HTTP dependency (Ensembl, UniProt, AlphaFold DB, NCBI E-utilities) is replaced by a recording `FakeSession` (`tests/fakes.py`), and the AlphaGenome model by small fakes. The suite therefore covers the end-to-end pipeline and CLI, batching, caching and error paths deterministically. CI (`.github/workflows/ci.yml`) runs lint and tests on Python 3.11 to 3.14.
 
 ## Limitations
 
 - Human (GRCh38) only.
+- `gene` mode selects ClinVar variants by review status, then spreads ties evenly along the gene. The selection is therefore not a random sample of the gene's variants. ClinVar changes monthly; the saved VCF keeps a run reproducible.
 - The AlphaGenome 2 tidy output has raw scores only (no quantile normalisation), so magnitudes are comparable within a scorer but not across scorers.
 - Raw-track summaries (`--outputs`) are deliberately coarse (window sums and max |Δ|). Use the variant scores for interpretation.
 - AlphaFold DB models are monomer predictions. pLDDT measures model confidence, not the effect of the mutation.
