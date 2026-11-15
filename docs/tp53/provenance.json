@@ -1,0 +1,44 @@
+{
+  "generated_utc": "2026-11-15T16:39:14Z",
+  "software": {
+    "geneme_structure": "0.1.0",
+    "git_commit": "13f5a75",
+    "python": "3.14.8",
+    "alphagenome_sdk": "2.0.0"
+  },
+  "data_sources": {
+    "genome_assembly": "GRCh38",
+    "ensembl_release": 116,
+    "clinvar_query_date": null,
+    "alphafold_entries": {
+      "AF-P04637-F1": {
+        "model_version": 6,
+        "model_created": "2025-08-01T00:00:00Z",
+        "file": "AF-P04637-F1-model_v6.pdb"
+      }
+    },
+    "alphagenome": {
+      "model": "AlphaGenome 2 (alphagenome.models.v2)",
+      "sequence_lengths": [
+        1048576
+      ],
+      "conditions": [
+        "UBERON:0001157"
+      ]
+    }
+  },
+  "parameters": {
+    "vcf": "examples/tp53_hotspots.vcf",
+    "conditions": [
+      "UBERON:0001157"
+    ],
+    "sequence_length": 1048576
+  },
+  "attribution": {
+    "AlphaGenome": "Predictions from AlphaGenome (Google DeepMind), API used under the AlphaGenome Terms of Service (https://alphagenome.google/terms): outputs are for non-commercial research use only, not for clinical decision-making, and not for training other models. Avsec et al., Nature 649, 1206-1218 (2026).",
+    "AlphaFold DB": "Structures from the AlphaFold Protein Structure Database (EMBL-EBI), CC-BY-4.0. Jumper et al., Nature 2021; Varadi et al., Nucleic Acids Res. 2024.",
+    "ClinVar": "Variant classifications from ClinVar (NCBI). Landrum et al., Nucleic Acids Res.",
+    "Ensembl": "Annotation from Ensembl VEP and REST. Martin et al., Nucleic Acids Res. 2023.",
+    "UniProt": "Protein domains from UniProtKB, CC-BY-4.0."
+  }
+}
