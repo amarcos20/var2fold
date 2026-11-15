@@ -220,4 +220,4 @@ Every HTTP dependency (Ensembl, UniProt, AlphaFold DB, NCBI E-utilities) is repl
 
 ## Licence & attribution
 
-Code: MIT. AlphaGenome outputs are subject to the [AlphaGenome Terms of Use](https://deepmind.google.com/science/alphagenome). AlphaFold DB data is CC-BY-4.0 (Jumper et al. 2021; Varadi et al. 2024).
+Code: [MIT](LICENSE). AlphaGenome outputs are subject to the [AlphaGenome Terms of Use](https://deepmind.google.com/science/alphagenome). AlphaFold DB data is CC-BY-4.0 (Jumper et al. 2021; Varadi et al. 2024).
