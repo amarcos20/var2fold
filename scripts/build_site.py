@@ -24,7 +24,7 @@ from nbconvert import HTMLExporter
 from geneme_structure.config import Settings
 from geneme_structure.gene_viewer import write_gene_html
 from geneme_structure.pipeline import GenomeToStructurePipeline
-from geneme_structure.provenance import ATTRIBUTION, collect_provenance
+from geneme_structure.provenance import ATTRIBUTION, collect_provenance, git_commit
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -203,6 +203,7 @@ def main() -> None:
     logging.basicConfig(level=logging.WARNING)
     settings = Settings.from_env()
     pipeline = GenomeToStructurePipeline(settings, sequence_length=WINDOW)
+    commit = git_commit()  # before writing: the build itself modifies tracked files
     cards = []
     for case in CASES:
         out = DOCS / case["slug"]
@@ -213,6 +214,7 @@ def main() -> None:
             results,
             session=pipeline.mapper.session,
             clinvar_date=vcf_file_date(vcf),
+            commit=commit,
             parameters={"vcf": case["vcf"], "conditions": [COLON], "sequence_length": WINDOW},
         )
         (out / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")

@@ -93,6 +93,7 @@ def collect_provenance(
     session: requests.Session | None = None,
     parameters: dict[str, Any] | None = None,
     clinvar_date: str | None = None,
+    commit: str | None = None,
 ) -> dict[str, Any]:
     """Versions and parameters behind `results` (JSON-serialisable)."""
     entries = {
@@ -110,7 +111,7 @@ def collect_provenance(
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "software": {
             "geneme_structure": __version__,
-            "git_commit": git_commit(),
+            "git_commit": commit or git_commit(),
             "python": platform.python_version(),
             "alphagenome_sdk": _package_version("alphagenome"),
         },
