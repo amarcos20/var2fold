@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-11-15T17:10:34Z",
+  "generated_utc": "2026-11-15T17:36:40Z",
   "software": {
     "var2fold": "0.1.0",
-    "git_commit": "fd1ab06",
+    "git_commit": "3588031",
     "python": "3.14.8",
     "alphagenome_sdk": "2.0.0"
   },

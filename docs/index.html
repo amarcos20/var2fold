@@ -98,8 +98,21 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
   </div>
 </article>
 
+  <h2>Does it work?</h2>
+  <article class="case">
+  <img src="img/benchmark_roc.png" alt="ROC curves of each var2fold feature on the ClinVar missense benchmark">
+  <div>
+    <h3>Benchmark: 300 ClinVar missense variants</h3>
+    <p>Do the scores carry information? On 150 pathogenic and 150 benign expert-reviewed missense variants in six genes, AlphaFold pLDDT at the mutated residue separates the classes with AUC 0.82. AlphaGenome splicing is weaker overall (AUC 0.67) but its top 20 scores are 19 pathogenic, and it flags 10 of the 31 pathogenic variants that structure cannot explain. Expression and accessibility show no signal, as expected for missense variants.</p>
+    <p><code>python notebooks/build_benchmark.py</code></p>
+    <div class="links">
+      <a class="primary" href="benchmark/report.html">Full analysis</a>
+    </div>
+  </div>
+</article>
+
   <h2>Run it on your gene</h2>
-<pre>pip install -e ".[alphagenome,notebook]"   # from a clone of the repository
+<pre>pip install "var2fold[alphagenome] @ git+https://github.com/amarcos20/var2fold"
 var2fold gene YOUR_GENE --max-variants 10
 papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
   <p>Code, documentation and tests: <a href="https://github.com/amarcos20/var2fold">https://github.com/amarcos20/var2fold</a></p>
