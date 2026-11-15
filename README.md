@@ -36,8 +36,8 @@ flowchart LR
 | Module | Responsibility |
 |---|---|
 | `config.py` | Reads settings strictly from env vars (`.env` via python-dotenv). The API key is held as a `SecretStr`. |
-| `models.py` | Pydantic models: `GenomicVariant`, `GenomicInterval`, `VariantAnnotation`, `TrackSummary`, `AlphaFoldEntry`, `PipelineResult` |
-| `alphagenome_client.py` | Wraps the official SDK, adds a content-addressed JSON cache and a throttle, and reduces numpy tracks to compact summaries |
+| `models.py` | Pydantic models: `GenomicVariant`, `GenomicInterval`, `VariantAnnotation`, `VariantScores`/`ScorerSummary`, `TrackSummary`, `AlphaFoldEntry`, `PipelineResult` |
+| `alphagenome_client.py` | Wraps the official SDK (`score_variant`, `predict_variant`, `predict_interval`), adds a content-addressed JSON cache and a throttle, summarises scores per scorer and compares conditions |
 | `alphafold_client.py` | AlphaFold DB metadata, cached structure download, per-residue pLDDT parsing |
 | `gene_mapping.py` | Variant/region → gene → UniProt, plus ClinVar, rsID and gnomAD AF (batched Ensembl VEP, Ensembl overlap, UniProt search) |
 | `vcf.py` | Dependency-free VCF reader (plain or gzip); splits multi-allelic records and skips symbolic ALTs |
@@ -60,7 +60,7 @@ flowchart LR
 ```bash
 git clone <your-fork-url> geneme-structure && cd geneme-structure
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[alphagenome,dev]"
+pip install -e ".[alphagenome,dev]"    # add ,notebook to run the case-study notebook
 
 cp .env.example .env    # then edit .env and set ALPHAGENOME_API_KEY
 ```
