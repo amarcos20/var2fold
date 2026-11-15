@@ -3,10 +3,14 @@
 Examples
 --------
     # TP53 R175H hotspot (GRCh38), RNA-seq + DNase in transverse colon
-    geneme-structure variant 'chr17:7675088:C>T' --ontology UBERON:0001157 --outputs RNA_SEQ DNASE
+    geneme-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
+
+    # Compare tissues / cell types side by side
+    geneme-structure variant 'chr17:7675088:C>T' \\
+        --condition UBERON:0001157 --condition UBERON:0002107 --condition UBERON:0000178_CL:0001054
 
     # All protein-coding genes in a region
-    geneme-structure region chr17:7668421-7687490 --ontology UBERON:0001157
+    geneme-structure region chr17:7668421-7687490 --condition UBERON:0001157
 
     # Structure only (no AlphaGenome key needed)
     geneme-structure structure P04637 --residue 175
@@ -30,6 +34,8 @@ from geneme_structure.alphagenome_client import (
     TRACK_OUTPUT_TYPES,
     AlphaGenomeClient,
     AlphaGenomeUnavailableError,
+    ConditionLike,
+    compare_conditions,
 )
 from geneme_structure.config import MissingCredentialError, Settings
 from geneme_structure.gene_mapping import GeneMapper
@@ -38,7 +44,7 @@ from geneme_structure.report import write_structure_html
 
 logger = logging.getLogger("geneme_structure")
 
-DEFAULT_ONTOLOGY = ("UBERON:0001157",)  # transverse colon
+DEFAULT_CONDITIONS: tuple[str, ...] = ("UBERON:0001157",)  # transverse colon
 MAX_REGION_GENES = 10
 
 
@@ -68,7 +74,7 @@ class GenomeToStructurePipeline:
     def run_variant(
         self,
         variant: GenomicVariant,
-        ontology_terms: Sequence[str] = DEFAULT_ONTOLOGY,
+        conditions: Sequence[ConditionLike] = DEFAULT_CONDITIONS,
         output_types: Sequence[str] = (),
         uniprot_override: str | None = None,
         score: bool = True,
@@ -77,6 +83,7 @@ class GenomeToStructurePipeline:
 
         `score` runs AlphaGenome's recommended variant scorers (the headline
         numbers). `output_types` additionally requests raw REF/ALT tracks.
+        Each condition is a separate (separately cached) AlphaGenome call.
         """
         warnings: list[str] = []
 
@@ -89,12 +96,15 @@ class GenomeToStructurePipeline:
             annotation.protein_position,
         )
 
-        prediction = scores = None
+        predictions, scores = [], []
         if self.alphagenome is not None:
-            if score:
-                scores = self.alphagenome.score_variant(variant, ontology_terms)
-            if output_types:
-                prediction = self.alphagenome.predict_variant(variant, ontology_terms, output_types)
+            for condition in conditions:
+                if score:
+                    scores.append(self.alphagenome.score_variant(variant, condition))
+                if output_types:
+                    predictions.append(
+                        self.alphagenome.predict_variant(variant, condition, output_types)
+                    )
 
         accession = uniprot_override or annotation.primary_uniprot
         if accession is None and annotation.gene_symbol:
@@ -113,7 +123,7 @@ class GenomeToStructurePipeline:
         return PipelineResult(
             query=str(variant),
             annotation=annotation,
-            alphagenome=prediction,
+            alphagenome=predictions,
             variant_scores=scores,
             structures=structures,
             warnings=warnings,
@@ -122,7 +132,7 @@ class GenomeToStructurePipeline:
     def run_region(
         self,
         interval: GenomicInterval,
-        ontology_terms: Sequence[str] = DEFAULT_ONTOLOGY,
+        conditions: Sequence[ConditionLike] = DEFAULT_CONDITIONS,
         output_types: Sequence[str] = ("RNA_SEQ",),
         max_genes: int = MAX_REGION_GENES,
     ) -> PipelineResult:
@@ -132,9 +142,12 @@ class GenomeToStructurePipeline:
         if len(genes) > max_genes:
             warnings.append(f"{len(genes)} genes found; fetching structures for first {max_genes}")
 
-        prediction = None
+        predictions = []
         if self.alphagenome is not None:
-            prediction = self.alphagenome.predict_interval(interval, ontology_terms, output_types)
+            predictions = [
+                self.alphagenome.predict_interval(interval, condition, output_types)
+                for condition in conditions
+            ]
 
         structures = []
         for gene in genes[:max_genes]:
@@ -150,7 +163,7 @@ class GenomeToStructurePipeline:
         return PipelineResult(
             query=str(interval),
             genes_in_region=genes,
-            alphagenome=prediction,
+            alphagenome=predictions,
             structures=structures,
             warnings=warnings,
         )
@@ -168,19 +181,32 @@ def write_report(result: PipelineResult, out_dir: Path) -> Path:
 
     * `<query>.json`: full result (per-track score records go to the CSV instead)
     * `<query>_scores.csv`: every AlphaGenome variant score (tidy, one row per track)
+    * `<query>_conditions.csv`: effect scores side by side, when >1 condition
     * `<query>_tracks.csv`: raw-track summaries, when requested
     * `<query>_<AF entry>.html`: interactive 3D viewer for each fetched PDB structure
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = report_stem(result.query)
     json_path = out_dir / f"{stem}.json"
-    json_path.write_text(result.model_dump_json(indent=2, exclude={"variant_scores": {"records"}}))
-    if result.variant_scores and result.variant_scores.records:
-        df = pd.DataFrame([r.model_dump() for r in result.variant_scores.records])
-        df.to_csv(out_dir / f"{stem}_scores.csv", index=False)
-    if result.alphagenome and result.alphagenome.tracks:
-        df = pd.DataFrame([t.model_dump() for t in result.alphagenome.tracks])
-        df.to_csv(out_dir / f"{stem}_tracks.csv", index=False)
+    json_path.write_text(
+        result.model_dump_json(indent=2, exclude={"variant_scores": {"__all__": {"records"}}})
+    )
+    score_rows = [
+        {"condition": vs.condition, **r.model_dump()}
+        for vs in result.variant_scores
+        for r in vs.records
+    ]
+    if score_rows:
+        pd.DataFrame(score_rows).to_csv(out_dir / f"{stem}_scores.csv", index=False)
+    if len(result.variant_scores) > 1:
+        compare_conditions(result.variant_scores).to_csv(out_dir / f"{stem}_conditions.csv")
+    track_rows = [
+        {"condition": pred.condition, **t.model_dump()}
+        for pred in result.alphagenome
+        for t in pred.tracks
+    ]
+    if track_rows:
+        pd.DataFrame(track_rows).to_csv(out_dir / f"{stem}_tracks.csv", index=False)
     for structure in result.structures:
         if structure.structure_path.endswith(".pdb"):
             html_path = out_dir / f"{stem}_{structure.entry.entry_id}.html"
@@ -198,19 +224,27 @@ def print_summary(result: PipelineResult) -> None:
             print(f"Protein:     {a.amino_acids or '?'} at residue {a.protein_position}")
     if result.genes_in_region:
         print(f"Genes:       {', '.join(result.genes_in_region)}")
-    if vs := result.variant_scores:
+    fmt = {"float_format": lambda v: f"{v:+.4f}"}
+    if len(result.variant_scores) == 1:
+        vs = result.variant_scores[0]
         src = "cache" if vs.from_cache else "live"
-        print(f"\nAlphaGenome variant scores ({src}, {vs.condition}, window {vs.interval}):")
+        print(f"\nAlphaGenome variant scores ({src}, {vs.label} [{vs.condition}]):")
         df = pd.DataFrame([x.model_dump() for x in vs.effects()])
         if df.empty:
             print("  (no scores returned)")
         else:
             cols = ["output_type", "scorer", "n_scores", "top_score", "top_gene"]
-            print(df[cols].fillna("-").to_string(index=False, float_format=lambda v: f"{v:+.4f}"))
-    if p := result.alphagenome:
-        src = "cache" if p.from_cache else "live"
-        print(f"\nAlphaGenome ({src}, window {p.interval}, {', '.join(p.ontology_terms)}):")
-        df = pd.DataFrame([t.model_dump(exclude_none=True) for t in p.tracks])
+            print(df[cols].fillna("-").to_string(index=False, **fmt))
+    elif result.variant_scores:
+        print("\nAlphaGenome effect scores by condition (compare within a row only):")
+        for vs in result.variant_scores:
+            src = "cache" if vs.from_cache else "live"
+            print(f"  {vs.label:<40} {vs.condition} ({src})")
+        print(compare_conditions(result.variant_scores).to_string(na_rep="-", **fmt))
+    for pred in result.alphagenome:
+        src = "cache" if pred.from_cache else "live"
+        print(f"\nAlphaGenome raw tracks ({src}, {pred.condition}, window {pred.interval}):")
+        df = pd.DataFrame([t.model_dump(exclude_none=True) for t in pred.tracks])
         print(df.to_string(index=False) if not df.empty else "  (no tracks returned)")
     for s in result.structures:
         e = s.entry
@@ -228,11 +262,14 @@ def print_summary(result: PipelineResult) -> None:
 
 def _add_prediction_args(p: argparse.ArgumentParser, default_outputs: list[str]) -> None:
     p.add_argument(
-        "--ontology",
-        nargs="+",
-        default=list(DEFAULT_ONTOLOGY),
-        help="Ontology CURIEs combined into one AlphaGenome condition, max one per type, "
-        "e.g. UBERON:0000178 CL:0001054 (default: %(default)s)",
+        "-c",
+        "--condition",
+        dest="conditions",
+        action="append",
+        metavar="CURIES",
+        help="AlphaGenome condition: one ontology CURIE or several joined by '_' "
+        "(max one per type), e.g. UBERON:0000178_CL:0001054. Repeat to compare "
+        f"conditions (default: {DEFAULT_CONDITIONS[0]}, transverse colon)",
     )
     p.add_argument(
         "--outputs",
@@ -314,14 +351,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.command == "variant":
                 result = pipeline.run_variant(
                     args.variant,
-                    args.ontology,
+                    args.conditions or DEFAULT_CONDITIONS,
                     args.outputs,
                     uniprot_override=args.uniprot,
                     score=not args.no_scores,
                 )
             else:
                 result = pipeline.run_region(
-                    args.region, args.ontology, args.outputs, max_genes=args.max_genes
+                    args.region,
+                    args.conditions or DEFAULT_CONDITIONS,
+                    args.outputs,
+                    max_genes=args.max_genes,
                 )
     except (MissingCredentialError, AlphaGenomeUnavailableError) as exc:
         logger.error("%s (or pass --no-alphagenome)", exc)

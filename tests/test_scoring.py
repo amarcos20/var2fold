@@ -70,3 +70,53 @@ def test_variant_window_matches_sdk_convention(variant, expected_start):
 def test_resized_rejects_negative_start():
     with pytest.raises(ValueError):
         GenomicInterval(chromosome="chr1", start=10, end=11).resized(16_384)
+
+
+def _scores(condition: str, biosample: str, rna_score: float, with_atac: bool = True):
+    from geneme_structure.models import ScoreRecord, VariantScores
+
+    lfc = "GeneMaskLFCScorer(DIFF_MEAN)"
+    records = [
+        ScoreRecord(
+            output_type="RNA_SEQ",
+            variant_scorer=lfc,
+            track_name="t",
+            gene_name="TP53",
+            biosample_name=biosample,
+            raw_score=rna_score,
+        )
+    ]
+    if with_atac:
+        records.append(
+            ScoreRecord(
+                output_type="ATAC",
+                variant_scorer="CenterMaskScorer()",
+                biosample_name=biosample,
+                raw_score=0.2,
+            )
+        )
+    return VariantScores(
+        query="chr1:100:A>G",
+        interval=GenomicInterval(chromosome="chr1", start=0, end=16_384),
+        condition=condition,
+        summary=summarize_scores(records),
+        records=records,
+    )
+
+
+def test_compare_conditions_pivots_and_keeps_order():
+    from geneme_structure.alphagenome_client import compare_conditions
+
+    liver = _scores("UBERON:0002107", "liver", -0.3, with_atac=False)
+    colon = _scores("UBERON:0001157", "transverse colon", 0.1)
+    table = compare_conditions([liver, colon])
+    assert list(table.columns) == ["liver", "transverse colon"]
+    assert table.loc[("RNA_SEQ", "GeneMaskLFCScorer(DIFF_MEAN)"), "liver"] == -0.3
+    assert pd.isna(table.loc[("ATAC", "CenterMaskScorer()"), "liver"])
+    assert compare_conditions([]).empty
+
+
+def test_label_falls_back_to_condition():
+    vs = _scores("UBERON:0002107", "liver", 0.1)
+    assert vs.label == "liver"
+    assert vs.model_copy(update={"records": []}).label == "UBERON:0002107"

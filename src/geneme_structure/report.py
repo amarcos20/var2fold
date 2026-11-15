@@ -75,10 +75,12 @@ _TEMPLATE = """<!doctype html>
     margin-right: 6px; vertical-align: -1px;
   }}
   .legend div {{ margin: 2px 0; }}
+  section .panel {{ margin-top: 16px; }}
   .table-wrap {{ overflow-x: auto; }}
+  .scorer {{ color: var(--muted); font-size: .8em; }}
   table {{ border-collapse: collapse; width: 100%; font-size: .85rem; }}
   th, td {{ text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); }}
-  td.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
+  td.num, th.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
   .hl {{ color: var(--accent); font-weight: 600; }}
   footer {{ color: var(--muted); font-size: .8rem; margin-top: 24px; }}
   a {{ color: inherit; }}
@@ -97,6 +99,7 @@ _TEMPLATE = """<!doctype html>
         <button id="btn-spin">Toggle spin</button>
         <button id="btn-surface">Toggle surface</button>
       </div>
+      {scores_panel}
     </section>
     <aside>
       {variant_panel}
@@ -115,7 +118,6 @@ _TEMPLATE = """<!doctype html>
         <h2>Model confidence</h2>
         {legend}
       </div>
-      {scores_panel}
     </aside>
   </div>
   <footer>
@@ -199,22 +201,42 @@ def _variant_panel(result: PipelineResult) -> str:
     return f'<div class="panel"><h2>Variant</h2><dl>{body}</dl></div>'
 
 
-def _scores_panel(result: PipelineResult, limit: int = 8) -> str:
-    vs = result.variant_scores
-    if vs is None or not vs.effects():
+def scorer_family(scorer: str) -> str:
+    """'GeneMaskLFCScorer(DIFF_MEAN)' -> 'GeneMaskLFC'."""
+    return scorer.split("(", 1)[0].removesuffix("Scorer")
+
+
+def _scores_panel(result: PipelineResult, limit: int = 10) -> str:
+    results = [vs for vs in result.variant_scores if vs.effects()]
+    if not results:
         return ""
-    top = sorted(vs.effects(), key=lambda s: s.max_abs_score, reverse=True)[:limit]
-    rows = "".join(
-        f"<tr><td>{_e(s.output_type)}</td><td>{_e(s.top_gene)}</td>"
-        f'<td class="num">{s.top_score:+.4f}</td></tr>'
-        for s in top
-    )
+    # Rank scorers by their strongest effect in any condition.
+    best: dict[tuple[str, str], float] = {}
+    for vs in results:
+        for s in vs.effects():
+            key = (s.output_type, s.scorer)
+            best[key] = max(best.get(key, 0.0), s.max_abs_score)
+    top = sorted(best, key=best.__getitem__, reverse=True)[:limit]
+    lookup = {(vs.label, s.output_type, s.scorer): s for vs in results for s in vs.effects()}
+
+    head = "".join(f'<th class="num">{_e(vs.label)}</th>' for vs in results)
+    body = ""
+    for otype, scorer in top:
+        cells = ""
+        for vs in results:
+            s = lookup.get((vs.label, otype, scorer))
+            cells += f'<td class="num">{f"{s.top_score:+.4f}" if s else "-"}</td>'
+        body += (
+            f'<tr><td title="{_e(scorer)}">{_e(otype)} '
+            f'<span class="scorer">{_e(scorer_family(scorer))}</span></td>{cells}</tr>'
+        )
+    conditions = ", ".join(vs.condition for vs in results)
     return (
         '<div class="panel"><h2>AlphaGenome effects</h2>'
-        f'<p class="sub" style="margin:0 0 8px">Condition {_e(vs.condition)}. '
-        "Strongest effect score per output type; compare within a row's scorer only.</p>"
-        '<div class="table-wrap"><table><thead><tr><th>Output</th><th>Gene</th>'
-        f'<th class="num">Score</th></tr></thead><tbody>{rows}</tbody></table></div></div>'
+        f'<p class="sub" style="margin:0 0 8px">{_e(conditions)}. Strongest effect score '
+        "per output type; compare values within a row only.</p>"
+        f'<div class="table-wrap"><table><thead><tr><th>Output</th>{head}</tr></thead>'
+        f"<tbody>{body}</tbody></table></div></div>"
     )
 
 
