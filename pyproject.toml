@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "geneme-structure"
+version = "0.1.0"
+description = "Link genetic variants to AlphaGenome regulatory predictions and AlphaFold DB 3D structures."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "biopython>=1.83",
+    "pandas>=2.1",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+# The official AlphaGenome SDK (gRPC). Kept optional so the AlphaFold /
+# annotation parts of the tool install and run without it.
+alphagenome = ["alphagenome>=2.0"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+geneme-structure = "geneme_structure.pipeline:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/geneme_structure"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
