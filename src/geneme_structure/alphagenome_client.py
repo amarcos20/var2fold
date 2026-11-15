@@ -14,8 +14,8 @@ The SDK is imported lazily so the rest of the package works without it.
 
 Conditions: AlphaGenome 2 predicts for a single *condition*, a composite of at
 most one ontology term per type (UBERON tissue, CL cell type, CLO, EFO, NTR),
-serialised as ``'UBERON:0000178_CL:0001054'``. ``ontology_terms`` passed to
-this client are joined into that condition.
+serialised as ``'UBERON:0000178_CL:0001054'``. Methods take a `condition`
+(that string, or a list of CURIEs) and normalise it with `to_condition`.
 """
 
 from __future__ import annotations
@@ -63,23 +63,34 @@ TRACK_OUTPUT_TYPES: tuple[str, ...] = (
     "METHYLATION",
 )
 
-CACHE_SCHEMA_VERSION = 3  # bump when the SDK/model or summary format changes
+CACHE_SCHEMA_VERSION = 4  # bump when the SDK/model or summary format changes
 
 
 class AlphaGenomeUnavailableError(ImportError):
     """Raised when the `alphagenome` SDK is not installed."""
 
 
-def to_condition(ontology_terms: Sequence[str]) -> str:
-    """Join ontology CURIEs into an AlphaGenome 2 composite condition string."""
-    terms = [t.strip() for t in ontology_terms if t.strip()]
+ConditionLike = str | Sequence[str]
+
+
+def to_condition(condition: ConditionLike) -> str:
+    """Normalise to an AlphaGenome 2 composite condition string.
+
+    Accepts 'UBERON:0000178_CL:0001054', 'UBERON:0000178 CL:0001054' or
+    ['UBERON:0000178', 'CL:0001054'].
+    """
+    parts = re.split(r"[_\s,]+", condition) if isinstance(condition, str) else list(condition)
+    terms = [t.strip() for t in parts if t and t.strip()]
     if not terms:
         raise ValueError("At least one ontology term (e.g. UBERON:0001157) is required")
+    bad = [t for t in terms if not re.fullmatch(r"[A-Za-z]+:\w+", t)]
+    if bad:
+        raise ValueError(f"Not ontology CURIEs: {bad} (expected e.g. UBERON:0001157)")
     prefixes = [t.split(":", 1)[0].upper() for t in terms]
     if len(set(prefixes)) != len(prefixes):
         raise ValueError(
             f"A condition takes at most one term per ontology type, got {terms}. "
-            "Run separate queries to compare tissues."
+            "Pass several conditions to compare tissues."
         )
     return "_".join(terms)
 
@@ -230,7 +241,7 @@ class AlphaGenomeClient:
     def predict_variant(
         self,
         variant: GenomicVariant,
-        ontology_terms: Sequence[str],
+        condition: ConditionLike,
         output_types: Sequence[str] = ("RNA_SEQ",),
         sequence_length: int | None = None,
     ) -> AlphaGenomePrediction:
@@ -238,14 +249,14 @@ class AlphaGenomeClient:
         length = sequence_length or self.sequence_length
         self._validate_length(length)
         outputs = self._validate_outputs(output_types)
-        to_condition(ontology_terms)  # fail fast, before any network call
+        condition = to_condition(condition)  # normalise; fails before any network call
         interval = variant_window(variant, length)
         payload = {
             "v": CACHE_SCHEMA_VERSION,
             "kind": "predict_variant",
             "query": str(variant),
             "interval": str(interval),
-            "ontology_terms": sorted(ontology_terms),
+            "condition": condition,
             "outputs": sorted(outputs),
         }
 
@@ -259,7 +270,7 @@ class AlphaGenomeClient:
                     reference_bases=variant.reference_bases,
                     alternate_bases=variant.alternate_bases,
                 ),
-                condition=to_condition(ontology_terms),
+                condition=condition,
                 requested_outputs=[getattr(dna_client.OutputType, o) for o in outputs],
             )
             tracks = [
@@ -277,7 +288,7 @@ class AlphaGenomeClient:
             return AlphaGenomePrediction(
                 query=str(variant),
                 interval=interval,
-                ontology_terms=list(ontology_terms),
+                condition=condition,
                 tracks=tracks,
             )
 
@@ -286,7 +297,7 @@ class AlphaGenomeClient:
     def predict_interval(
         self,
         interval: GenomicInterval,
-        ontology_terms: Sequence[str],
+        condition: ConditionLike,
         output_types: Sequence[str] = ("RNA_SEQ",),
         sequence_length: int | None = None,
     ) -> AlphaGenomePrediction:
@@ -301,14 +312,14 @@ class AlphaGenomeClient:
                 length,
             )
         outputs = self._validate_outputs(output_types)
-        to_condition(ontology_terms)  # fail fast, before any network call
+        condition = to_condition(condition)  # normalise; fails before any network call
         window = interval.resized(length)
         payload = {
             "v": CACHE_SCHEMA_VERSION,
             "kind": "predict_interval",
             "query": str(interval),
             "interval": str(window),
-            "ontology_terms": sorted(ontology_terms),
+            "condition": condition,
             "outputs": sorted(outputs),
         }
 
@@ -316,7 +327,7 @@ class AlphaGenomeClient:
             genome, dna_client = _import_sdk()
             result = self.model.predict_interval(
                 interval=genome.Interval(window.chromosome, window.start, window.end),
-                condition=to_condition(ontology_terms),
+                condition=condition,
                 requested_outputs=[getattr(dna_client.OutputType, o) for o in outputs],
             )
             tracks = [
@@ -327,7 +338,7 @@ class AlphaGenomeClient:
             return AlphaGenomePrediction(
                 query=str(interval),
                 interval=window,
-                ontology_terms=list(ontology_terms),
+                condition=condition,
                 tracks=tracks,
             )
 
@@ -336,7 +347,7 @@ class AlphaGenomeClient:
     def score_variant(
         self,
         variant: GenomicVariant,
-        ontology_terms: Sequence[str],
+        condition: ConditionLike,
         sequence_length: int | None = None,
     ) -> VariantScores:
         """Score `variant` with AlphaGenome's recommended variant scorers.
@@ -347,7 +358,7 @@ class AlphaGenomeClient:
         """
         length = sequence_length or self.sequence_length
         self._validate_length(length)
-        condition = to_condition(ontology_terms)
+        condition = to_condition(condition)
         interval = variant_window(variant, length)
         payload = {
             "v": CACHE_SCHEMA_VERSION,
@@ -396,7 +407,7 @@ def _track_names(track_data: Any, n: int) -> list[str]:
 def summarize_variant_tracks(output_type: str, ref: Any, alt: Any) -> TrackSummary | None:
     """Collapse REF/ALT `TrackData` (positions x tracks) into a `TrackSummary`."""
     if ref is None or alt is None:
-        logger.warning("No %s tracks returned (check ontology terms)", output_type)
+        logger.warning("No %s tracks returned (check the condition)", output_type)
         return None
     ref_v = np.asarray(ref.values, dtype=float)
     alt_v = np.asarray(alt.values, dtype=float)
@@ -420,7 +431,7 @@ def summarize_variant_tracks(output_type: str, ref: Any, alt: Any) -> TrackSumma
 
 def summarize_interval_tracks(output_type: str, data: Any) -> TrackSummary | None:
     if data is None:
-        logger.warning("No %s tracks returned (check ontology terms)", output_type)
+        logger.warning("No %s tracks returned (check the condition)", output_type)
         return None
     values = np.asarray(data.values, dtype=float)
     if values.size == 0:
@@ -495,3 +506,29 @@ def summarize_scores(records: Sequence[ScoreRecord]) -> list[ScorerSummary]:
             )
         )
     return sorted(out, key=lambda x: (x.kind != "effect", x.output_type, x.scorer))
+
+
+def compare_conditions(results: Sequence[VariantScores]) -> pd.DataFrame:
+    """Effect scores side by side: one row per (output type, scorer), one column per condition.
+
+    Each cell is the strongest signed effect score for that scorer in that
+    condition. Only compare values within a row (same scorer, same scale).
+    """
+    rows = [
+        {
+            "output_type": s.output_type,
+            "scorer": s.scorer,
+            "condition": vs.label,
+            "top_score": s.top_score,
+        }
+        for vs in results
+        for s in vs.effects()
+    ]
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    order = list(dict.fromkeys(vs.label for vs in results))
+    table = df.pivot_table(
+        index=["output_type", "scorer"], columns="condition", values="top_score", aggfunc="first"
+    )
+    return table.reindex(columns=[c for c in order if c in table.columns])

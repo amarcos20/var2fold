@@ -47,8 +47,8 @@ flowchart LR
 - **AlphaGenome has no public REST endpoint.** Access goes through the official `alphagenome` Python SDK (gRPC, `alphagenome.models.v2`). The SDK is an optional extra, imported lazily, so the structure and annotation features work without it.
 - **Variant scores vs raw tracks:** the headline numbers come from `score_variant` with AlphaGenome's recommended scorers. These are the model's own recipes, e.g. a log2 ratio in a 501 bp window around the variant, or gene-level log fold change. The summary keeps the strongest score per (output type, scorer) and separates *effect* scorers (ALT vs REF) from *activity* scorers (max of REF/ALT). `--outputs` additionally summarises raw REF/ALT tracks.
 - **Windows match the SDK:** `GenomicInterval.resized` reproduces `genome.Interval.resize` exactly. AlphaGenome is not perfectly shift-invariant, so a 1 bp offset in the window would change the scores.
-- **Caching:** each AlphaGenome request is canonicalised (variant, window, ontology terms, outputs) and hashed with SHA-256. The reduced result is stored as JSON under `.cache/alphagenome/`. Repeated runs cost zero API quota. Pass `--no-cache` to force a live call.
-- **Conditions:** AlphaGenome 2 predicts for one *condition*, built from at most one ontology term per type. `--ontology UBERON:0000178 CL:0001054` becomes `'UBERON:0000178_CL:0001054'` (blood, CD14+ monocytes). To compare tissues, run separate queries; each is cached independently.
+- **Caching:** each AlphaGenome request is canonicalised (kind, variant or region, window, condition, outputs) and hashed with SHA-256. The reduced result is stored as JSON under `.cache/alphagenome/`. Repeated runs cost zero API quota. Pass `--no-cache` to force a live call.
+- **Conditions:** AlphaGenome 2 predicts for one *condition*, built from at most one ontology term per type, e.g. `UBERON:0000178_CL:0001054` (blood, CD14+ monocytes). Repeat `-c/--condition` to compare several. Each condition is its own cached call, and the results are pivoted into one table with a column per biosample.
 - **Coordinates:** GRCh38 throughout. Variants are 1-based (VCF). Intervals are parsed from 1-based UCSC strings and stored 0-based half-open (BED/AlphaGenome).
 - **Secrets:** the key is read only from `os.getenv("ALPHAGENOME_API_KEY")`. The placeholder value counts as unset, and the key is masked in every `repr`.
 
@@ -70,13 +70,14 @@ You can request a free non-commercial AlphaGenome API key at <https://deepmind.g
 
 ```bash
 # TP53 R175H hotspot: regulatory effect in transverse colon + AlphaFold model
-geneme-structure variant 'chr17:7675088:C>T' --ontology UBERON:0001157
+geneme-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
 
 # ...also summarise raw REF/ALT RNA-seq and DNase tracks
 geneme-structure variant 'chr17:7675088:C>T' --outputs RNA_SEQ DNASE
 
-# Cell-type-specific condition (tissue + cell type)
-geneme-structure variant 'chr17:7675088:C>T' --ontology UBERON:0000178 CL:0001054
+# Compare conditions side by side: colon, liver, blood CD14+ monocytes
+geneme-structure variant 'chr17:7675088:C>T' \
+    -c UBERON:0001157 -c UBERON:0002107 -c UBERON:0000178_CL:0001054
 
 # Protein-coding genes in a region, their predicted signal, and structures
 geneme-structure region chr17:7668421-7687490 --max-genes 5
@@ -91,7 +92,8 @@ geneme-structure variant 'chr17:7675088:C>T' --no-alphagenome
 Each run prints a summary and writes:
 
 - `results/<query>.json`: the full validated `PipelineResult`
-- `results/<query>_scores.csv`: every AlphaGenome variant score in tidy form (output type, scorer, track, gene, biosample, raw score)
+- `results/<query>_scores.csv`: every AlphaGenome variant score in tidy form (condition, output type, scorer, track, gene, biosample, raw score)
+- `results/<query>_conditions.csv`: effect scores pivoted with one column per condition (when there are several)
 - `results/<query>_tracks.csv`: raw-track summaries when `--outputs` is given (REF/ALT sums, log2FC, max |Δ|, top track)
 - `results/<query>_<AF entry>.html`: an interactive 3D viewer (open in any browser), with the structure embedded and coloured by pLDDT and the mutated residue highlighted
 - `data/structures/AF-<acc>-F1-model_v*.pdb`: the downloaded structure
@@ -106,10 +108,11 @@ from geneme_structure.pipeline import GenomeToStructurePipeline
 pipeline = GenomeToStructurePipeline(Settings.from_env())
 result = pipeline.run_variant(
     GenomicVariant.parse("chr17:7675088:C>T"),
-    ontology_terms=["UBERON:0001157"],
-    output_types=["RNA_SEQ", "ATAC"],
+    conditions=["UBERON:0001157", "UBERON:0000178_CL:0001054"],
 )
 print(result.structures[0].residue_plddt)
+for vs in result.variant_scores:
+    print(vs.label, [(s.output_type, s.top_score) for s in vs.effects()][:3])
 ```
 
 ## Configuration

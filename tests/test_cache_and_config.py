@@ -49,7 +49,7 @@ def test_cache_hit_skips_api(tmp_path):
         return AlphaGenomePrediction(
             query="q",
             interval=GenomicInterval(chromosome="chr1", start=0, end=16_384),
-            ontology_terms=["X"],
+            condition="X",
             tracks=[],
         )
 
@@ -74,7 +74,12 @@ def test_summarize_variant_tracks():
 def test_to_condition():
     from geneme_structure.alphagenome_client import to_condition
 
-    assert to_condition(["UBERON:0000178", "CL:0001054"]) == "UBERON:0000178_CL:0001054"
+    expected = "UBERON:0000178_CL:0001054"
+    assert to_condition(["UBERON:0000178", "CL:0001054"]) == expected
+    assert to_condition("UBERON:0000178_CL:0001054") == expected
+    assert to_condition("UBERON:0000178 CL:0001054") == expected
+    with pytest.raises(ValueError):
+        to_condition("colon")
     with pytest.raises(ValueError):
         to_condition(["UBERON:0000178", "UBERON:0001157"])
     with pytest.raises(ValueError):

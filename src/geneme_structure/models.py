@@ -185,7 +185,7 @@ class TrackSummary(_Base):
 class AlphaGenomePrediction(_Base):
     query: str
     interval: GenomicInterval
-    ontology_terms: list[str]
+    condition: str
     tracks: list[TrackSummary]
     from_cache: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -228,6 +228,12 @@ class VariantScores(_Base):
 
     def effects(self) -> list[ScorerSummary]:
         return [s for s in self.summary if s.kind == "effect"]
+
+    @property
+    def label(self) -> str:
+        """Human-readable condition, e.g. 'transverse colon' (falls back to the CURIEs)."""
+        names = sorted({r.biosample_name for r in self.records if r.biosample_name})
+        return " / ".join(names[:2]) if names else self.condition
 
 
 # --------------------------------------------------------------------------- AlphaFold
@@ -291,7 +297,11 @@ class PipelineResult(_Base):
     query: str
     annotation: VariantAnnotation | None = None
     genes_in_region: list[str] = Field(default_factory=list)
-    alphagenome: AlphaGenomePrediction | None = None
-    variant_scores: VariantScores | None = None
+    alphagenome: list[AlphaGenomePrediction] = Field(
+        default_factory=list, description="Raw-track summaries, one per condition"
+    )
+    variant_scores: list[VariantScores] = Field(
+        default_factory=list, description="Recommended-scorer results, one per condition"
+    )
     structures: list[StructureResult] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
