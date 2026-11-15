@@ -1,14 +1,14 @@
 import pandas as pd
 import pytest
 
-from genome_structure.alphagenome_client import (
+from var2fold.alphagenome_client import (
     records_from_tidy,
     scorer_kind,
     short_scorer_name,
     summarize_scores,
     variant_window,
 )
-from genome_structure.models import GenomicInterval, GenomicVariant
+from var2fold.models import GenomicInterval, GenomicVariant
 
 
 def _tidy() -> pd.DataFrame:
@@ -73,7 +73,7 @@ def test_resized_rejects_negative_start():
 
 
 def _scores(condition: str, biosample: str, rna_score: float, with_atac: bool = True):
-    from genome_structure.models import ScoreRecord, VariantScores
+    from var2fold.models import ScoreRecord, VariantScores
 
     lfc = "GeneMaskLFCScorer(DIFF_MEAN)"
     records = [
@@ -105,7 +105,7 @@ def _scores(condition: str, biosample: str, rna_score: float, with_atac: bool = 
 
 
 def test_compare_conditions_pivots_and_keeps_order():
-    from genome_structure.alphagenome_client import compare_conditions
+    from var2fold.alphagenome_client import compare_conditions
 
     liver = _scores("UBERON:0002107", "liver", -0.3, with_atac=False)
     colon = _scores("UBERON:0001157", "transverse colon", 0.1)

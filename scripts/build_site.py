@@ -21,16 +21,16 @@ from pathlib import Path
 import nbformat
 from nbconvert import HTMLExporter
 
-from genome_structure.config import Settings
-from genome_structure.gene_viewer import write_gene_html
-from genome_structure.pipeline import GenomeToStructurePipeline
-from genome_structure.provenance import ATTRIBUTION, collect_provenance, git_commit
+from var2fold.config import Settings
+from var2fold.gene_viewer import write_gene_html
+from var2fold.pipeline import GenomeToStructurePipeline
+from var2fold.provenance import ATTRIBUTION, collect_provenance, git_commit
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 COLON = "UBERON:0001157"
 WINDOW = 1_048_576
-REPO_URL = "https://github.com/amarcos20/genome-structure"
+REPO_URL = "https://github.com/amarcos20/var2fold"
 
 CASES = [
     {
@@ -39,7 +39,7 @@ CASES = [
         "vcf": "examples/BRCA1_clinvar_missense.vcf",
         "notebook": "notebooks/examples/BRCA1_report.ipynb",
         "image": "img/brca1_effects.png",
-        "command": "genome-structure gene BRCA1 --max-variants 10",
+        "command": "var2fold gene BRCA1 --max-variants 10",
         "blurb": (
             "Ten expert-panel pathogenic missense variants, most in the folded RING and BRCT "
             "domains. Two of them, D1692H and E1559K, get AlphaGenome splicing scores about "
@@ -54,7 +54,7 @@ CASES = [
         "vcf": "examples/tp53_hotspots.vcf",
         "notebook": "notebooks/tp53_hotspots.ipynb",
         "image": "img/tp53_plddt_profile.png",
-        "command": "genome-structure vcf examples/tp53_hotspots.vcf",
+        "command": "var2fold vcf examples/tp53_hotspots.vcf",
         "blurb": (
             "Seven cancer hotspots and the common P72R polymorphism. Every hotspot sits in the "
             "folded DNA-binding domain (residue pLDDT 95–99), which fits a structural "
@@ -65,7 +65,7 @@ CASES = [
 ]
 
 NAV = (
-    '<nav><a href="../">← genome-structure</a> · <a href="report.html">Full report</a>'
+    '<nav><a href="../">← var2fold</a> · <a href="report.html">Full report</a>'
     ' · <a href="provenance.json">provenance.json</a></nav>'
 )
 
@@ -85,7 +85,7 @@ def notebook_html(path: Path, title: str) -> str:
     body, _ = exporter.from_notebook_node(nb, resources={"metadata": {"name": title}})
     banner = (
         '<div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid '
-        '#ccc"><a href="../">← genome-structure</a> · <a href="viewer.html">3D viewer</a> · '
+        '#ccc"><a href="../">← var2fold</a> · <a href="viewer.html">3D viewer</a> · '
         "Executed notebook, rendered as a static page. Research use only.</div>"
     )
     return re.sub(r"(<body[^>]*>)", lambda m: m.group(1) + banner, body, count=1)
@@ -96,7 +96,7 @@ INDEX = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>genome-structure</title>
+<title>var2fold</title>
 <meta name="description" content="From a genetic variant to its predicted regulatory effect
 and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
 <style>
@@ -150,7 +150,7 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
 </head>
 <body>
 <main>
-  <h1>genome-structure</h1>
+  <h1>var2fold</h1>
   <p class="lead">From a genetic variant to its predicted regulatory effect and the 3D
   protein it hits. Start from a variant, a VCF or just a gene name.</p>
 
@@ -168,7 +168,7 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
 
   <h2>Run it on your gene</h2>
 <pre>pip install -e ".[alphagenome,notebook]"   # from a clone of the repository
-genome-structure gene YOUR_GENE --max-variants 10
+var2fold gene YOUR_GENE --max-variants 10
 papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
   <p>Code, documentation and tests: <a href="{repo}">{repo}</a></p>
 
@@ -178,7 +178,7 @@ papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
   change over time; each case lists the exact versions in its <code>provenance.json</code>
   and in the panel at the bottom of its 3D viewer.</p>
   <ul class="attr">{attribution}</ul>
-  <footer>genome-structure {version} · built with <code>scripts/build_site.py</code></footer>
+  <footer>var2fold {version} · built with <code>scripts/build_site.py</code></footer>
 </main>
 </body>
 </html>
@@ -242,7 +242,7 @@ def main() -> None:
         f"<li><strong>{html.escape(k)}.</strong> {html.escape(v)}</li>"
         for k, v in ATTRIBUTION.items()
     )
-    from genome_structure import __version__
+    from var2fold import __version__
 
     (DOCS / "index.html").write_text(
         INDEX.format(

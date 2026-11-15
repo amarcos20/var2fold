@@ -7794,7 +7794,7 @@ a.anchor-link {
   }
 </style>
 <!-- End of mermaid configuration --></head>
-<body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light"><div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid #ccc"><a href="../">← genome-structure</a> · <a href="viewer.html">3D viewer</a> · Executed notebook, rendered as a static page. Research use only.</div>
+<body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light"><div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid #ccc"><a href="../">← var2fold</a> · <a href="viewer.html">3D viewer</a> · Executed notebook, rendered as a static page. Research use only.</div>
 <main>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2f9fe8a5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7803,7 +7803,7 @@ a.anchor-link {
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h1 id="TP53-cancer-hotspots:-structure-or-regulation?">TP53 cancer hotspots: structure or regulation?<a class="anchor-link" href="#TP53-cancer-hotspots:-structure-or-regulation?">¶</a></h1><p>TP53 is the most frequently mutated gene in human cancer. Most of its somatic mutations are missense changes clustered at a few <em>hotspot</em> residues (R175, Y220, G245, R248, R273, R282).</p>
-<p>This notebook asks one question with <code>genome-structure</code>: <strong>do these hotspots act through the protein structure, through gene regulation, or both?</strong></p>
+<p>This notebook asks one question with <code>var2fold</code>: <strong>do these hotspots act through the protein structure, through gene regulation, or both?</strong></p>
 <ul>
 <li><strong>AlphaFold DB</strong> gives the 3D model of p53 and its per-residue confidence (pLDDT). Hotspots in a well-folded domain point to a structural mechanism.</li>
 <li><strong>AlphaGenome</strong> scores each variant's predicted effect on expression, splicing and chromatin accessibility in the full 1 Mb genomic context.</li>
@@ -7832,12 +7832,12 @@ a.anchor-link {
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.alphafold_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlphaFoldClient</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.alphagenome_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">compare_conditions</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Settings</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenomicVariant</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenomeToStructurePipeline</span><span class="p">,</span> <span class="n">batch_table</span><span class="p">,</span> <span class="n">write_report</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">effects_panels</span><span class="p">,</span> <span class="n">plddt_profile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.alphafold_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlphaFoldClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.alphagenome_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">compare_conditions</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Settings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenomicVariant</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenomeToStructurePipeline</span><span class="p">,</span> <span class="n">batch_table</span><span class="p">,</span> <span class="n">write_report</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">effects_panels</span><span class="p">,</span> <span class="n">plddt_profile</span>
 
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span>
 <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">"IProgress not found"</span><span class="p">)</span>  <span class="c1"># tqdm without ipywidgets</span>

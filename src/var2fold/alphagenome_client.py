@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel
 
-from genome_structure.models import (
+from var2fold.models import (
     AlphaGenomePrediction,
     GenomicInterval,
     GenomicVariant,

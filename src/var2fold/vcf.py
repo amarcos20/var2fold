@@ -16,7 +16,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from genome_structure.models import GenomicVariant
+from var2fold.models import GenomicVariant
 
 logger = logging.getLogger(__name__)
 

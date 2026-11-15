@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from genome_structure.models import AlphaFoldEntry, GenomicInterval, GenomicVariant, plddt_band
+from var2fold.models import AlphaFoldEntry, GenomicInterval, GenomicVariant, plddt_band
 
 
 def test_parse_variant_normalizes():

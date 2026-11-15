@@ -13,8 +13,8 @@ from typing import Any
 
 import requests
 
-from genome_structure.http_session import build_session
-from genome_structure.models import (
+from var2fold.http_session import build_session
+from var2fold.models import (
     GenomicInterval,
     GenomicVariant,
     ProteinFeature,

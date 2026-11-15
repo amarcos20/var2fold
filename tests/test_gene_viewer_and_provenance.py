@@ -5,10 +5,10 @@ import json
 import pytest
 from fakes import AF_ENTRY, TOY_PDB, FakeResponse, FakeSession
 
-from genome_structure import provenance as prov_mod
-from genome_structure.alphagenome_client import summarize_scores
-from genome_structure.gene_viewer import render_gene_html, variant_rows, write_gene_html
-from genome_structure.models import (
+from var2fold import provenance as prov_mod
+from var2fold.alphagenome_client import summarize_scores
+from var2fold.gene_viewer import render_gene_html, variant_rows, write_gene_html
+from var2fold.models import (
     AlphaFoldEntry,
     GenomicVariant,
     PipelineResult,
@@ -17,7 +17,7 @@ from genome_structure.models import (
     VariantAnnotation,
     VariantScores,
 )
-from genome_structure.provenance import collect_provenance, ensembl_release
+from var2fold.provenance import collect_provenance, ensembl_release
 
 
 def _results(tmp_path):

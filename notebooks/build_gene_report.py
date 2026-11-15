@@ -30,7 +30,7 @@ cells = [
     md(
         """# Gene report: ClinVar variants → regulation and structure
 
-This notebook runs `genome-structure` for **any human gene**:
+This notebook runs `var2fold` for **any human gene**:
 
 1. **ClinVar** gives the known pathogenic variants of the gene (most trusted review status first).
 2. **Ensembl VEP** annotates each one (consequence, residue, gnomAD).
@@ -56,11 +56,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from IPython.display import Markdown, display
 
-from genome_structure.alphafold_client import AlphaFoldClient
-from genome_structure.clinvar import write_vcf
-from genome_structure.config import Settings
-from genome_structure.pipeline import GenomeToStructurePipeline, batch_findings, batch_table
-from genome_structure.plots import effects_panels, plddt_profile
+from var2fold.alphafold_client import AlphaFoldClient
+from var2fold.clinvar import write_vcf
+from var2fold.config import Settings
+from var2fold.pipeline import GenomeToStructurePipeline, batch_findings, batch_table
+from var2fold.plots import effects_panels, plddt_profile
 
 logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings("ignore", message="IProgress not found")
@@ -88,7 +88,7 @@ pipeline = GenomeToStructurePipeline(
 )
 vcf_path = write_vcf(selection, OUT / f"{gene}_clinvar_{consequence}.vcf")
 shown = vcf_path.relative_to(ROOT) if vcf_path.is_relative_to(ROOT) else vcf_path
-print(f"Selection saved to {shown} (re-run it with: genome-structure vcf ...)")
+print(f"Selection saved to {shown} (re-run it with: var2fold vcf ...)")
 pd.DataFrame(
     {
         "label": cv.label,

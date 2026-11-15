@@ -1,12 +1,12 @@
-# genome-structure
+# var2fold
 
-[![CI](https://github.com/amarcos20/genome-structure/actions/workflows/ci.yml/badge.svg)](https://github.com/amarcos20/genome-structure/actions/workflows/ci.yml)
+[![CI](https://github.com/amarcos20/var2fold/actions/workflows/ci.yml/badge.svg)](https://github.com/amarcos20/var2fold/actions/workflows/ci.yml)
 
 **From a genetic variant to its predicted regulatory effect to the 3D protein it hits, in one command.**
 
-**[Live demo: interactive 3D viewers and reports for BRCA1 and TP53](https://amarcos20.github.io/genome-structure/)**
+**[Live demo: interactive 3D viewers and reports for BRCA1 and TP53](https://amarcos20.github.io/var2fold/)**
 
-`genome-structure` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
+`var2fold` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
 
 1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region. It also returns the allele-specific ClinVar significance, rsID and gnomAD frequency.
 2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) scores the variant with the model's recommended variant scorers (expression, chromatin accessibility, histone marks, TF binding, methylation, splicing, 3D contacts) over up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
@@ -67,7 +67,7 @@ flowchart LR
 ## Installation
 
 ```bash
-git clone <your-fork-url> genome-structure && cd genome-structure
+git clone <your-fork-url> var2fold && cd var2fold
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[alphagenome,dev]"    # add ,notebook for the notebooks (matplotlib, papermill)
 
@@ -82,32 +82,32 @@ You can request a free non-commercial AlphaGenome API key at <https://deepmind.g
 
 ```bash
 # TP53 R175H hotspot: regulatory effect in transverse colon + AlphaFold model
-genome-structure variant 'chr17:7675088:C>T' --condition UBERON:0001157
+var2fold variant 'chr17:7675088:C>T' --condition UBERON:0001157
 
 # ...also summarise raw REF/ALT RNA-seq and DNase tracks
-genome-structure variant 'chr17:7675088:C>T' --outputs RNA_SEQ DNASE
+var2fold variant 'chr17:7675088:C>T' --outputs RNA_SEQ DNASE
 
 # Compare conditions side by side: colon, liver, blood CD14+ monocytes
-genome-structure variant 'chr17:7675088:C>T' \
+var2fold variant 'chr17:7675088:C>T' \
     -c UBERON:0001157 -c UBERON:0002107 -c UBERON:0000178_CL:0001054
 
 # Protein-coding genes in a region, their predicted signal, and structures
-genome-structure region chr17:7668421-7687490 --max-genes 5
+var2fold region chr17:7668421-7687490 --max-genes 5
 
 # Batch: every variant in a VCF -> one summary table (VEP annotation is batched)
-genome-structure vcf examples/tp53_hotspots.vcf --max-variants 25
+var2fold vcf examples/tp53_hotspots.vcf --max-variants 25
 
 # Start from a gene: its 10 most trusted pathogenic missense variants in ClinVar
-genome-structure gene BRCA1 --max-variants 10
+var2fold gene BRCA1 --max-variants 10
 
 # ...or splice-site variants, where AlphaGenome is most informative
-genome-structure gene CFTR --consequence splice --max-variants 10
+var2fold gene CFTR --consequence splice --max-variants 10
 
 # Structure only (no API key required)
-genome-structure structure P04637 --residue 175
+var2fold structure P04637 --residue 175
 
 # Annotation + structure, skipping AlphaGenome
-genome-structure variant 'chr17:7675088:C>T' --no-alphagenome
+var2fold variant 'chr17:7675088:C>T' --no-alphagenome
 ```
 
 Each run prints a summary and writes:
@@ -125,9 +125,9 @@ Each run prints a summary and writes:
 ### Python API
 
 ```python
-from genome_structure.config import Settings
-from genome_structure.models import GenomicVariant
-from genome_structure.pipeline import GenomeToStructurePipeline
+from var2fold.config import Settings
+from var2fold.models import GenomicVariant
+from var2fold.pipeline import GenomeToStructurePipeline
 
 pipeline = GenomeToStructurePipeline(Settings.from_env())
 result = pipeline.run_variant(
@@ -196,15 +196,15 @@ Each page shows the generation date and the versions used (Ensembl release, Alph
 | Variable | Default | Purpose |
 |---|---|---|
 | `ALPHAGENOME_API_KEY` | (required for predictions) | AlphaGenome API key |
-| `GENOME_CACHE_DIR` | `.cache` | AlphaGenome response cache |
-| `GENOME_DATA_DIR` | `data` | Downloaded structures |
-| `GENOME_HTTP_TIMEOUT` | `30` | REST timeout (seconds) |
+| `VAR2FOLD_CACHE_DIR` | `.cache` | AlphaGenome response cache |
+| `VAR2FOLD_DATA_DIR` | `data` | Downloaded structures |
+| `VAR2FOLD_HTTP_TIMEOUT` | `30` | REST timeout (seconds) |
 | `NCBI_API_KEY` | (optional) | Raises the NCBI E-utilities limit for `gene` from 3 to 10 requests/s |
 
 ## Development
 
 ```bash
-pytest --cov=genome_structure   # 81 offline tests, ~93% coverage, no network or API key
+pytest --cov=var2fold   # 81 offline tests, ~93% coverage, no network or API key
 ruff check . && ruff format --check .
 ```
 

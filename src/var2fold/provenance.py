@@ -19,8 +19,8 @@ from typing import Any
 
 import requests
 
-from genome_structure import __version__
-from genome_structure.models import PipelineResult
+from var2fold import __version__
+from var2fold.models import PipelineResult
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ def collect_provenance(
     return {
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "software": {
-            "genome_structure": __version__,
+            "var2fold": __version__,
             "git_commit": commit or git_commit(),
             "python": platform.python_version(),
             "alphagenome_sdk": _package_version("alphagenome"),

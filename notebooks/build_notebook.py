@@ -14,7 +14,7 @@ cells = [
 
 TP53 is the most frequently mutated gene in human cancer. Most of its somatic mutations are missense changes clustered at a few *hotspot* residues (R175, Y220, G245, R248, R273, R282).
 
-This notebook asks one question with `genome-structure`: **do these hotspots act through the protein structure, through gene regulation, or both?**
+This notebook asks one question with `var2fold`: **do these hotspots act through the protein structure, through gene regulation, or both?**
 
 * **AlphaFold DB** gives the 3D model of p53 and its per-residue confidence (pLDDT). Hotspots in a well-folded domain point to a structural mechanism.
 * **AlphaGenome** scores each variant's predicted effect on expression, splicing and chromatin accessibility in the full 1 Mb genomic context.
@@ -31,12 +31,12 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from genome_structure.alphafold_client import AlphaFoldClient
-from genome_structure.alphagenome_client import compare_conditions
-from genome_structure.config import Settings
-from genome_structure.models import GenomicVariant
-from genome_structure.pipeline import GenomeToStructurePipeline, batch_table, write_report
-from genome_structure.plots import effects_panels, plddt_profile
+from var2fold.alphafold_client import AlphaFoldClient
+from var2fold.alphagenome_client import compare_conditions
+from var2fold.config import Settings
+from var2fold.models import GenomicVariant
+from var2fold.pipeline import GenomeToStructurePipeline, batch_table, write_report
+from var2fold.plots import effects_panels, plddt_profile
 
 logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings("ignore", message="IProgress not found")  # tqdm without ipywidgets

@@ -14,8 +14,8 @@ import requests
 from Bio.PDB import MMCIFParser, PDBParser
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
-from genome_structure.http_session import build_session
-from genome_structure.models import UNIPROT_RE, AlphaFoldEntry, StructureResult, plddt_band
+from var2fold.http_session import build_session
+from var2fold.models import UNIPROT_RE, AlphaFoldEntry, StructureResult, plddt_band
 
 logger = logging.getLogger(__name__)
 

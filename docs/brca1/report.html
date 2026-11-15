@@ -7794,7 +7794,7 @@ a.anchor-link {
   }
 </style>
 <!-- End of mermaid configuration --></head>
-<body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light"><div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid #ccc"><a href="../">← genome-structure</a> · <a href="viewer.html">3D viewer</a> · Executed notebook, rendered as a static page. Research use only.</div>
+<body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light"><div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid #ccc"><a href="../">← var2fold</a> · <a href="viewer.html">3D viewer</a> · Executed notebook, rendered as a static page. Research use only.</div>
 <main>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5cf34e6c">
 <div class="jp-Cell-inputWrapper" tabindex="0">
@@ -7802,7 +7802,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Gene-report:-ClinVar-variants-%E2%86%92-regulation-and-structure">Gene report: ClinVar variants → regulation and structure<a class="anchor-link" href="#Gene-report:-ClinVar-variants-%E2%86%92-regulation-and-structure">¶</a></h1><p>This notebook runs <code>genome-structure</code> for <strong>any human gene</strong>:</p>
+<h1 id="Gene-report:-ClinVar-variants-%E2%86%92-regulation-and-structure">Gene report: ClinVar variants → regulation and structure<a class="anchor-link" href="#Gene-report:-ClinVar-variants-%E2%86%92-regulation-and-structure">¶</a></h1><p>This notebook runs <code>var2fold</code> for <strong>any human gene</strong>:</p>
 <ol>
 <li><strong>ClinVar</strong> gives the known pathogenic variants of the gene (most trusted review status first).</li>
 <li><strong>Ensembl VEP</strong> annotates each one (consequence, residue, gnomAD).</li>
@@ -7871,11 +7871,11 @@ a.anchor-link {
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">Markdown</span><span class="p">,</span> <span class="n">display</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.alphafold_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlphaFoldClient</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.clinvar</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_vcf</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Settings</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenomeToStructurePipeline</span><span class="p">,</span> <span class="n">batch_findings</span><span class="p">,</span> <span class="n">batch_table</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">genome_structure.plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">effects_panels</span><span class="p">,</span> <span class="n">plddt_profile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.alphafold_client</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlphaFoldClient</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.clinvar</span><span class="w"> </span><span class="kn">import</span> <span class="n">write_vcf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Settings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.pipeline</span><span class="w"> </span><span class="kn">import</span> <span class="n">GenomeToStructurePipeline</span><span class="p">,</span> <span class="n">batch_findings</span><span class="p">,</span> <span class="n">batch_table</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">var2fold.plots</span><span class="w"> </span><span class="kn">import</span> <span class="n">effects_panels</span><span class="p">,</span> <span class="n">plddt_profile</span>
 
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span>
 <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">"ignore"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">"IProgress not found"</span><span class="p">)</span>
@@ -7924,7 +7924,7 @@ a.anchor-link {
 <span class="p">)</span>
 <span class="n">vcf_path</span> <span class="o">=</span> <span class="n">write_vcf</span><span class="p">(</span><span class="n">selection</span><span class="p">,</span> <span class="n">OUT</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s2">_clinvar_</span><span class="si">{</span><span class="n">consequence</span><span class="si">}</span><span class="s2">.vcf"</span><span class="p">)</span>
 <span class="n">shown</span> <span class="o">=</span> <span class="n">vcf_path</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">ROOT</span><span class="p">)</span> <span class="k">if</span> <span class="n">vcf_path</span><span class="o">.</span><span class="n">is_relative_to</span><span class="p">(</span><span class="n">ROOT</span><span class="p">)</span> <span class="k">else</span> <span class="n">vcf_path</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Selection saved to </span><span class="si">{</span><span class="n">shown</span><span class="si">}</span><span class="s2"> (re-run it with: genome-structure vcf ...)"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Selection saved to </span><span class="si">{</span><span class="n">shown</span><span class="si">}</span><span class="s2"> (re-run it with: var2fold vcf ...)"</span><span class="p">)</span>
 <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
     <span class="p">{</span>
         <span class="s2">"label"</span><span class="p">:</span> <span class="n">cv</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
@@ -7948,7 +7948,7 @@ a.anchor-link {
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Selection saved to results/gene_reports/BRCA1_clinvar_missense.vcf (re-run it with: genome-structure vcf ...)
+<pre>Selection saved to results/gene_reports/BRCA1_clinvar_missense.vcf (re-run it with: var2fold vcf ...)
 </pre>
 </div>
 </div>
