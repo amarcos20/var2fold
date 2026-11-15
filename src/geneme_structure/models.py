@@ -159,6 +159,13 @@ class VariantAnnotation(_Base):
     protein_position: int | None = None
     amino_acids: str | None = None
     uniprot_accessions: list[str] = Field(default_factory=list)
+    rsid: str | None = None
+    clinvar_significance: list[str] = Field(
+        default_factory=list, description="Germline ClinVar significance for this ALT allele"
+    )
+    clinvar_somatic: str | None = Field(default=None, description="ClinVar somatic class")
+    clinvar_ids: list[str] = Field(default_factory=list, description="ClinVar VCV accessions")
+    gnomad_af: float | None = Field(default=None, description="Max gnomAD genome/exome AF")
 
     @property
     def primary_uniprot(self) -> str | None:
@@ -295,6 +302,7 @@ def plddt_band(score: float) -> str:
 
 class PipelineResult(_Base):
     query: str
+    vcf_id: str | None = None
     annotation: VariantAnnotation | None = None
     genes_in_region: list[str] = Field(default_factory=list)
     alphagenome: list[AlphaGenomePrediction] = Field(
