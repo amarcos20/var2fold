@@ -27,9 +27,11 @@ Examples
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from collections.abc import Sequence
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -597,7 +599,7 @@ def _run_vcf_command(pipeline: GenomeToStructurePipeline, args: argparse.Namespa
         max_variants=args.max_variants,
         score=not args.no_scores,
     )
-    return _write_batch(results, report_stem(args.vcf.name), args)
+    return _write_batch(results, report_stem(args.vcf.name), args, pipeline.mapper.session)
 
 
 def _run_gene_command(pipeline: GenomeToStructurePipeline, args: argparse.Namespace) -> int:
@@ -613,12 +615,39 @@ def _run_gene_command(pipeline: GenomeToStructurePipeline, args: argparse.Namesp
     stem = f"{report_stem(args.gene)}_clinvar_{args.consequence}"
     vcf_path = write_vcf(selection, args.out_dir / f"{stem}.vcf")
     logger.info("ClinVar selection saved to %s (re-run it with the `vcf` command)", vcf_path)
-    return _write_batch(results, stem, args)
+    return _write_batch(
+        results, stem, args, pipeline.mapper.session, clinvar_date=date.today().isoformat()
+    )
 
 
-def _write_batch(results: list[PipelineResult], stem: str, args: argparse.Namespace) -> int:
+def _write_batch(
+    results: list[PipelineResult],
+    stem: str,
+    args: argparse.Namespace,
+    session: requests.Session | None = None,
+    clinvar_date: str | None = None,
+) -> int:
+    # Local imports: gene_viewer imports this module.
+    from geneme_structure.gene_viewer import write_gene_html
+    from geneme_structure.provenance import collect_provenance
+
     out_dir: Path = args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
+    provenance = collect_provenance(
+        results,
+        session=session,
+        clinvar_date=clinvar_date,
+        parameters={k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()},
+    )
+    (out_dir / f"{stem}_provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
+    if any(r.structures for r in results):
+        viewer = write_gene_html(
+            results,
+            out_dir / f"{stem}_viewer.html",
+            title=stem.replace("_", " "),
+            provenance=provenance,
+        )
+        logger.info("3D overview of all variants: %s", viewer)
     if args.reports:
         for result in results:
             write_report(result, out_dir / stem)

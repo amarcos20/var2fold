@@ -20,6 +20,7 @@ import re
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -319,6 +320,7 @@ def write_vcf(variants: Iterable[ClinVarVariant], path: Path, source: str = "Cli
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "##fileformat=VCFv4.2",
+        f"##fileDate={date.today():%Y%m%d}",
         f"##source=geneme-structure {__version__} ({source})",
         "##reference=GRCh38",
         '##INFO=<ID=CLNVCV,Number=1,Type=String,Description="ClinVar VCV accession">',
