@@ -146,7 +146,11 @@ def test_batch_table_one_row_per_variant_and_condition():
     table = batch_table([annotated, bare])
     assert len(table) == 3
     first = table.iloc[0]
-    assert (first.vcf_id, first.protein_change, first.clinvar) == ("R175H", "R/H@175", "pathogenic")
+    assert (first.vcf_id, first.protein_change, first.clinvar) == (
+        "R175H",
+        "R/H@175",
+        "pathogenic (submissions)",
+    )
     assert list(table.condition[:2]) == ["colon", "liver"]
     assert list(table.rna_lfc[:2]) == [-0.1, 0.2] and table.splicing[0] == 0.3
     assert table.iloc[2].warnings == "failed: boom"

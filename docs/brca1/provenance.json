@@ -1,8 +1,8 @@
 {
-  "generated_utc": "2026-11-15T16:39:04Z",
+  "generated_utc": "2026-11-15T16:48:06Z",
   "software": {
     "geneme_structure": "0.1.0",
-    "git_commit": "13f5a75",
+    "git_commit": "836d23a+dirty",
     "python": "3.14.8",
     "alphagenome_sdk": "2.0.0"
   },

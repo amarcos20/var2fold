@@ -279,3 +279,34 @@ def test_cli_gene_no_hits_is_an_error(tmp_path, monkeypatch):
     monkeypatch.setattr(gene_mapping, "build_session", lambda: session)
     monkeypatch.chdir(tmp_path)
     assert main(["-o", str(tmp_path), "gene", "NOTAGENE", "--no-alphagenome"]) == 2
+
+
+def test_annotate_adds_allele_specific_clinvar(settings):
+    vep = {
+        **VEP_TP53,
+        "colocated_variants": [
+            {
+                "id": "rs1",
+                "clin_sig_allele": "T:pathogenic;T:benign",
+                "var_synonyms": {"ClinVar": ["VCV000000007", "RCV1"]},
+            }
+        ],
+    }
+    session = FakeSession().add("/vep/", vep_echo(lambda line: vep))
+    session.add(
+        "eutils", eutils([clinvar_doc("7", "NC_000017.11:7675087:C:T", classification="Benign")])
+    )
+    pipeline = GenomeToStructurePipeline(settings, use_alphagenome=False)
+    pipeline.mapper = gene_mapping.GeneMapper(session=session)
+    pipeline.clinvar = clinvar.ClinVarClient(session=session)
+    pipeline.clinvar.min_interval_s = 0
+    [a] = pipeline.annotate([GenomicVariant.parse("chr17:7675088:C>T")])
+    assert a.clinvar_label == "Benign" and a.clinvar_accession == "VCV000000007"
+
+    broken = FakeSession().add("/vep/", vep_echo(lambda line: vep))
+    broken.add("eutils", FakeResponse(status_code=500))
+    pipeline.mapper = gene_mapping.GeneMapper(session=broken)
+    pipeline.clinvar = clinvar.ClinVarClient(session=broken)
+    pipeline.clinvar.min_interval_s = 0
+    [a] = pipeline.annotate([GenomicVariant.parse("chr17:7675088:C>T")])
+    assert a.clinvar_label == "pathogenic, benign (submissions)"  # falls back to VEP terms
