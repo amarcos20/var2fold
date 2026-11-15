@@ -64,6 +64,22 @@ CASES = [
     },
 ]
 
+BENCHMARK = {
+    "slug": "benchmark",
+    "title": "Benchmark: 300 ClinVar missense variants",
+    "notebook": "notebooks/clinvar_benchmark.ipynb",
+    "image": "img/benchmark_roc.png",
+    "command": "python notebooks/build_benchmark.py",
+    "blurb": (
+        "Do the scores carry information? On 150 pathogenic and 150 benign expert-reviewed "
+        "missense variants in six genes, AlphaFold pLDDT at the mutated residue separates the "
+        "classes with AUC 0.82. AlphaGenome splicing is weaker overall (AUC 0.67) but its top "
+        "20 scores are 19 pathogenic, and it flags 10 of the 31 pathogenic variants that "
+        "structure cannot explain. Expression and accessibility show no signal, as expected "
+        "for missense variants."
+    ),
+}
+
 NAV = (
     '<nav><a href="../">← var2fold</a> · <a href="report.html">Full report</a>'
     ' · <a href="provenance.json">provenance.json</a></nav>'
@@ -79,14 +95,15 @@ def vcf_file_date(path: Path) -> str | None:
     return None
 
 
-def notebook_html(path: Path, title: str) -> str:
+def notebook_html(path: Path, title: str, viewer: bool = True) -> str:
     nb = nbformat.read(path, as_version=4)
     exporter = HTMLExporter(template_name="lab")
     body, _ = exporter.from_notebook_node(nb, resources={"metadata": {"name": title}})
     banner = (
         '<div style="font:14px system-ui,sans-serif;padding:10px 16px;border-bottom:1px solid '
-        '#ccc"><a href="../">← var2fold</a> · <a href="viewer.html">3D viewer</a> · '
-        "Executed notebook, rendered as a static page. Research use only.</div>"
+        '#ccc"><a href="../">← var2fold</a> · '
+        + ('<a href="viewer.html">3D viewer</a> · ' if viewer else "")
+        + "Executed notebook, rendered as a static page. Research use only.</div>"
     )
     return re.sub(r"(<body[^>]*>)", lambda m: m.group(1) + banner, body, count=1)
 
@@ -166,8 +183,11 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
   <h2>Case studies</h2>
   {cases}
 
+  <h2>Does it work?</h2>
+  {benchmark}
+
   <h2>Run it on your gene</h2>
-<pre>pip install -e ".[alphagenome,notebook]"   # from a clone of the repository
+<pre>pip install "var2fold[alphagenome] @ git+https://github.com/amarcos20/var2fold"
 var2fold gene YOUR_GENE --max-variants 10
 papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
   <p>Code, documentation and tests: <a href="{repo}">{repo}</a></p>
@@ -194,6 +214,19 @@ CASE = """<article class="case">
       <a class="primary" href="{slug}/viewer.html">Open 3D viewer</a>
       <a href="{slug}/report.html">Full report</a>
       <a href="{slug}/provenance.json">Provenance</a>
+    </div>
+  </div>
+</article>"""
+
+
+BENCHMARK_CARD = """<article class="case">
+  <img src="{image}" alt="{alt}">
+  <div>
+    <h3>{title}</h3>
+    <p>{blurb}</p>
+    <p><code>{command}</code></p>
+    <div class="links">
+      <a class="primary" href="{slug}/report.html">Full analysis</a>
     </div>
   </div>
 </article>"""
@@ -238,6 +271,21 @@ def main() -> None:
         )
         print(f"wrote docs/{case['slug']}/ ({len(results)} variants)")
 
+    bench_dir = DOCS / BENCHMARK["slug"]
+    bench_dir.mkdir(parents=True, exist_ok=True)
+    (bench_dir / "report.html").write_text(
+        notebook_html(ROOT / BENCHMARK["notebook"], BENCHMARK["title"], viewer=False)
+    )
+    benchmark_card = BENCHMARK_CARD.format(
+        slug=BENCHMARK["slug"],
+        image=BENCHMARK["image"],
+        alt="ROC curves of each var2fold feature on the ClinVar missense benchmark",
+        title=html.escape(BENCHMARK["title"]),
+        blurb=html.escape(BENCHMARK["blurb"]),
+        command=html.escape(BENCHMARK["command"]),
+    )
+    print("wrote docs/benchmark/")
+
     attribution = "".join(
         f"<li><strong>{html.escape(k)}.</strong> {html.escape(v)}</li>"
         for k, v in ATTRIBUTION.items()
@@ -247,6 +295,7 @@ def main() -> None:
     (DOCS / "index.html").write_text(
         INDEX.format(
             cases="\n".join(cards),
+            benchmark=benchmark_card,
             repo=REPO_URL,
             generated=date.today().isoformat(),
             attribution=attribution,

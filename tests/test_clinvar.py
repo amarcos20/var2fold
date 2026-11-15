@@ -29,7 +29,7 @@ def test_build_query_filters():
     "args",
     [
         ("BRCA1", "nonsense-ish", ["pathogenic"]),
-        ("BRCA1", "missense", ["benign"]),
+        ("BRCA1", "missense", ["vus"]),
         ("BRCA1", "missense", []),
         ("BRCA1) OR (x", "missense", ["pathogenic"]),
     ],

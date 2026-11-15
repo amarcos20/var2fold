@@ -54,6 +54,8 @@ CONSEQUENCE_SETS: dict[str, tuple[str, ...]] = {
 SIGNIFICANCE_FILTERS = {
     "pathogenic": "clinsig_pathogenic",
     "likely_pathogenic": "clinsig_likely_pathogenic",
+    "benign": "clinsig_benign",
+    "likely_benign": "clinsig_likely_benign",
 }
 # One amino-acid substitution, e.g. R175H (excludes stop gains 'E1817*' and frameshifts).
 MISSENSE_CHANGE = re.compile(r"^[A-Z]\d+[A-Z]$")
@@ -178,10 +180,10 @@ def spdi_key(chromosome: str, spdi: str) -> tuple[str, int, str, str]:
 
 
 def _tier(p: dict[str, Any]) -> tuple[int, int]:
-    """Lower is better: review stars, then Pathogenic before Likely pathogenic."""
+    """Lower is better: review stars, then a firm call (Pathogenic, Benign) before "Likely"."""
     return (
         -REVIEW_STARS.get(p["review_status"], 0),
-        0 if p["classification"].lower().startswith("pathogenic") else 1,
+        1 if p["classification"].lower().startswith("likely") else 0,
     )
 
 

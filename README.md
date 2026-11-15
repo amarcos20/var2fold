@@ -14,6 +14,22 @@
 
 ![3D viewer for TP53 R175H: AlphaFold model coloured by pLDDT, Arg175 highlighted, AlphaGenome effect scores alongside](docs/img/tp53_r175h_viewer.png)
 
+## Does it work? A ClinVar benchmark
+
+On **300 expert-reviewed missense variants** in six genes (BRCA1, BRCA2, TP53, MSH2, MLH1, PTEN; 150 pathogenic, 150 benign), each var2fold feature was scored against ClinVar's classification ([`notebooks/clinvar_benchmark.ipynb`](notebooks/clinvar_benchmark.ipynb)):
+
+| Feature | ROC AUC (95% CI) | Reading |
+|---|---|---|
+| AlphaFold pLDDT at the mutated residue | **0.82** (0.77–0.87) | pathogenic variants sit in folded domains |
+| AlphaGenome \|splicing effect\| | **0.67** (0.61–0.73) | weak on average, but 19 of the top 20 scores are pathogenic |
+| AlphaGenome \|expression effect\| | 0.51 (0.44–0.57) | no signal (expected for missense) |
+| AlphaGenome \|accessibility effect\| | 0.48 (0.41–0.54) | no signal (expected for missense) |
+| gnomAD allele frequency | 0.89 (0.86–0.93) | ceiling only: ClinVar uses it to classify |
+
+![ROC curves on the ClinVar missense benchmark](docs/img/benchmark_roc.png)
+
+Structure and regulation are **complementary**: of the 31 pathogenic variants that structure cannot explain (pLDDT < 70 or no model), AlphaGenome gives 10 a splicing score above the 95th percentile of benign variants. Many are "missense" variants on the last bases of an exon, such as BRCA1 D1692H and E1559K. The notebook covers per-gene results and the caveats (circularity, missing structures for BRCA2, the PTEN-L isoform, selection by review status). The variant set is fixed in [`examples/clinvar_missense_benchmark.vcf`](examples/clinvar_missense_benchmark.vcf) (built by `scripts/build_benchmark_set.py`); rebuild the notebook with `python notebooks/build_benchmark.py`.
+
 ## Architecture
 
 ```mermaid
@@ -66,8 +82,18 @@ flowchart LR
 
 ## Installation
 
+As a command-line tool:
+
 ```bash
-git clone <your-fork-url> var2fold && cd var2fold
+pip install "var2fold[alphagenome] @ git+https://github.com/amarcos20/var2fold"
+export ALPHAGENOME_API_KEY=...    # or put it in a .env file in the working directory
+var2fold gene BRCA1 --max-variants 10
+```
+
+For development, the notebooks and the site:
+
+```bash
+git clone https://github.com/amarcos20/var2fold && cd var2fold
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[alphagenome,dev]"    # add ,notebook for the notebooks (matplotlib, papermill)
 
@@ -204,7 +230,7 @@ Each page shows the generation date and the versions used (Ensembl release, Alph
 ## Development
 
 ```bash
-pytest --cov=var2fold   # 81 offline tests, ~93% coverage, no network or API key
+pytest --cov=var2fold   # 105 offline tests, ~93% coverage, no network or API key
 ruff check . && ruff format --check .
 ```
 
