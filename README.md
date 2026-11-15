@@ -122,18 +122,25 @@ for vs in result.variant_scores:
     print(vs.label, [(s.output_type, s.top_score) for s in vs.effects()][:3])
 ```
 
-### Example: TP53 hotspots
+### Case study: TP53 cancer hotspots
 
-`examples/tp53_hotspots.vcf` holds seven cancer hotspots and the common P72R polymorphism. Abridged output for transverse colon, 16 KB window:
+[`notebooks/tp53_hotspots.ipynb`](notebooks/tp53_hotspots.ipynb) runs the whole pipeline on [`examples/tp53_hotspots.vcf`](examples/tp53_hotspots.vcf), which holds seven cancer hotspots plus the common P72R polymorphism, and asks whether the hotspots act through structure or regulation. Regenerate it with `python notebooks/build_notebook.py` (install the `notebook` extra first).
 
-| variant | change | ClinVar | residue pLDDT | RNA LFC | splicing | accessibility |
-|---|---|---|---:|---:|---:|---:|
-| chr17:7676154:G>C | P72R | pathogenic; benign | 48.3 | -0.064 | 0.127 | 0.008 |
-| chr17:7675088:C>T | R175H | (likely) pathogenic | 96.6 | -0.012 | 0.041 | 0.047 |
-| chr17:7674872:T>C | Y220C | (likely) pathogenic | 97.7 | -0.045 | **0.521** | 0.025 |
-| chr17:7673802:C>T | R273H | (likely) pathogenic | 98.6 | -0.007 | 0.065 | -0.029 |
+![pLDDT along p53 with the hotspots marked](docs/img/tp53_plddt_profile.png)
 
-The hotspots sit in the confidently predicted DNA-binding domain (pLDDT > 94). P72R lies in the disordered proline-rich region. AlphaGenome's regulatory effects are small for most of these coding changes, with Y220C's splicing score as the outlier.
+![AlphaGenome effect scores per variant](docs/img/tp53_effects.png)
+
+| variant | change | residue pLDDT | RNA LFC | splicing | accessibility |
+|---|---|---:|---:|---:|---:|
+| chr17:7676154:G>C | P72R (polymorphism) | 48.3 | +0.021 | +0.230 | +0.007 |
+| chr17:7675088:C>T | R175H | 96.6 | +0.005 | +0.144 | −0.016 |
+| chr17:7674872:T>C | Y220C | 97.7 | +0.009 | **+0.503** | +0.020 |
+| chr17:7674220:C>T | R248Q | 97.3 | −0.007 | +0.226 | −0.045 |
+| chr17:7673802:C>T | R273H | 98.6 | −0.005 | +0.087 | −0.032 |
+
+*Transverse colon, 1 Mb context, abridged. All hotspots are ClinVar (likely) pathogenic.*
+
+All hotspots sit in the confidently predicted DNA-binding domain, which fits a structural mechanism. Predicted regulatory effects are small, with one exception: Y220C's splicing score, a testable hypothesis rather than a finding. The notebook discusses the results and their caveats.
 
 ## Configuration
 
