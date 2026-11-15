@@ -40,4 +40,4 @@ jobs:
       - name: Install
         run: pip install -e ".[alphagenome,dev]"
       - name: Test (offline; no API key needed)
-        run: pytest --cov=geneme_structure --cov-report=term-missing
+        run: pytest --cov=genome_structure --cov-report=term-missing

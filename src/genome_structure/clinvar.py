@@ -26,9 +26,9 @@ from typing import Any
 
 import requests
 
-from geneme_structure import __version__
-from geneme_structure.http_session import build_session
-from geneme_structure.models import GenomicVariant, normalize_chromosome
+from genome_structure import __version__
+from genome_structure.http_session import build_session
+from genome_structure.models import GenomicVariant, normalize_chromosome
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ class ClinVarClient:
         wait = self.min_interval_s - (time.monotonic() - self._last_call)
         if wait > 0:
             time.sleep(wait)
-        params = {"db": "clinvar", "retmode": "json", "tool": "geneme-structure", **params}
+        params = {"db": "clinvar", "retmode": "json", "tool": "genome-structure", **params}
         if self.api_key:
             params["api_key"] = self.api_key
         # POST keeps long id lists out of the URL (and the key out of server logs).
@@ -371,7 +371,7 @@ def write_vcf(variants: Iterable[ClinVarVariant], path: Path, source: str = "Cli
     lines = [
         "##fileformat=VCFv4.2",
         f"##fileDate={date.today():%Y%m%d}",
-        f"##source=geneme-structure {__version__} ({source})",
+        f"##source=genome-structure {__version__} ({source})",
         "##reference=GRCh38",
         '##INFO=<ID=CLNVCV,Number=1,Type=String,Description="ClinVar VCV accession">',
         '##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar germline classification">',

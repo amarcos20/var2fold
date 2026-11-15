@@ -1,7 +1,7 @@
 {
   "generated_utc": "2026-11-15T16:51:33Z",
   "software": {
-    "geneme_structure": "0.1.0",
+    "genome_structure": "0.1.0",
     "git_commit": "1dca268+dirty",
     "python": "3.14.8",
     "alphagenome_sdk": "2.0.0"

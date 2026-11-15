@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>geneme-structure</title>
+<title>genome-structure</title>
 <meta name="description" content="From a genetic variant to its predicted regulatory effect
 and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
 <style>
@@ -57,7 +57,7 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
 </head>
 <body>
 <main>
-  <h1>geneme-structure</h1>
+  <h1>genome-structure</h1>
   <p class="lead">From a genetic variant to its predicted regulatory effect and the 3D
   protein it hits. Start from a variant, a VCF or just a gene name.</p>
 
@@ -76,7 +76,7 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
   <div>
     <h3>BRCA1: pathogenic missense variants from ClinVar</h3>
     <p>Ten expert-panel pathogenic missense variants, most in the folded RING and BRCT domains. Two of them, D1692H and E1559K, get AlphaGenome splicing scores about 40× the median. Both sit on the last base of an exon, and VEP independently flags exactly these two as splice-region variants: damage that may come from mis-splicing as well as from the amino-acid change.</p>
-    <p><code>geneme-structure gene BRCA1 --max-variants 10</code></p>
+    <p><code>genome-structure gene BRCA1 --max-variants 10</code></p>
     <div class="links">
       <a class="primary" href="brca1/viewer.html">Open 3D viewer</a>
       <a href="brca1/report.html">Full report</a>
@@ -89,7 +89,7 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
   <div>
     <h3>TP53: cancer hotspots</h3>
     <p>Seven cancer hotspots and the common P72R polymorphism. Every hotspot sits in the folded DNA-binding domain (residue pLDDT 95–99), which fits a structural mechanism. Predicted regulatory effects are small, with one splicing outlier (Y220C) worth testing.</p>
-    <p><code>geneme-structure vcf examples/tp53_hotspots.vcf</code></p>
+    <p><code>genome-structure vcf examples/tp53_hotspots.vcf</code></p>
     <div class="links">
       <a class="primary" href="tp53/viewer.html">Open 3D viewer</a>
       <a href="tp53/report.html">Full report</a>
@@ -100,9 +100,9 @@ and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
 
   <h2>Run it on your gene</h2>
 <pre>pip install -e ".[alphagenome,notebook]"   # from a clone of the repository
-geneme-structure gene YOUR_GENE --max-variants 10
+genome-structure gene YOUR_GENE --max-variants 10
 papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
-  <p>Code, documentation and tests: <a href="https://github.com/amarcos20/geneme-structure">https://github.com/amarcos20/geneme-structure</a></p>
+  <p>Code, documentation and tests: <a href="https://github.com/amarcos20/genome-structure">https://github.com/amarcos20/genome-structure</a></p>
 
   <h2>About this snapshot</h2>
   <p class="notice">Research use only, not for clinical decision-making. These pages were
@@ -110,7 +110,7 @@ papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
   change over time; each case lists the exact versions in its <code>provenance.json</code>
   and in the panel at the bottom of its 3D viewer.</p>
   <ul class="attr"><li><strong>AlphaGenome.</strong> Predictions from AlphaGenome (Google DeepMind), API used under the AlphaGenome Terms of Service (https://alphagenome.google/terms): outputs are for non-commercial research use only, not for clinical decision-making, and not for training other models. Avsec et al., Nature 649, 1206-1218 (2026).</li><li><strong>AlphaFold DB.</strong> Structures from the AlphaFold Protein Structure Database (EMBL-EBI), CC-BY-4.0. Jumper et al., Nature 2021; Varadi et al., Nucleic Acids Res. 2024.</li><li><strong>ClinVar.</strong> Variant classifications from ClinVar (NCBI). Landrum et al., Nucleic Acids Res.</li><li><strong>Ensembl.</strong> Annotation from Ensembl VEP and REST. Martin et al., Nucleic Acids Res. 2023.</li><li><strong>UniProt.</strong> Protein domains from UniProtKB, CC-BY-4.0.</li></ul>
-  <footer>geneme-structure 0.1.0 · built with <code>scripts/build_site.py</code></footer>
+  <footer>genome-structure 0.1.0 · built with <code>scripts/build_site.py</code></footer>
 </main>
 </body>
 </html>

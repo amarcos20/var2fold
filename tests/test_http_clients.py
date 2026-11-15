@@ -6,9 +6,9 @@ import pytest
 import requests
 from fakes import AF_ENTRY, TOY_PDB, FakeResponse, vep_echo
 
-from geneme_structure.alphafold_client import AlphaFoldClient
-from geneme_structure.gene_mapping import VEP_BATCH_SIZE, GeneMapper
-from geneme_structure.models import GenomicInterval, GenomicVariant
+from genome_structure.alphafold_client import AlphaFoldClient
+from genome_structure.gene_mapping import VEP_BATCH_SIZE, GeneMapper
+from genome_structure.models import GenomicInterval, GenomicVariant
 
 # ------------------------------------------------------------------ AlphaFold DB
 

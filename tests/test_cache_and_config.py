@@ -3,12 +3,12 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from geneme_structure.alphagenome_client import (
+from genome_structure.alphagenome_client import (
     AlphaGenomeClient,
     ResponseCache,
     summarize_variant_tracks,
 )
-from geneme_structure.config import MissingCredentialError, Settings
+from genome_structure.config import MissingCredentialError, Settings
 
 
 def test_cache_roundtrip_is_order_independent(tmp_path):
@@ -37,13 +37,13 @@ def test_key_never_in_repr(monkeypatch, tmp_path):
 
 
 def test_cache_hit_skips_api(tmp_path):
-    from geneme_structure.models import GenomicVariant
+    from genome_structure.models import GenomicVariant
 
     client = AlphaGenomeClient("k", tmp_path, sequence_length=16_384, min_interval_s=0)
     calls = []
 
     def fake_call():
-        from geneme_structure.models import AlphaGenomePrediction, GenomicInterval
+        from genome_structure.models import AlphaGenomePrediction, GenomicInterval
 
         calls.append(1)
         return AlphaGenomePrediction(
@@ -72,7 +72,7 @@ def test_summarize_variant_tracks():
 
 
 def test_to_condition():
-    from geneme_structure.alphagenome_client import to_condition
+    from genome_structure.alphagenome_client import to_condition
 
     expected = "UBERON:0000178_CL:0001054"
     assert to_condition(["UBERON:0000178", "CL:0001054"]) == expected

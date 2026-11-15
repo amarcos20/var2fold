@@ -1,6 +1,6 @@
 ##fileformat=VCFv4.2
 ##fileDate=20261115
-##source=geneme-structure 0.1.0 (ClinVar)
+##source=genome-structure 0.1.0 (ClinVar)
 ##reference=GRCh38
 ##INFO=<ID=CLNVCV,Number=1,Type=String,Description="ClinVar VCV accession">
 ##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar germline classification">

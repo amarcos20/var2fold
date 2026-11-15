@@ -2,14 +2,14 @@ from pathlib import Path
 
 import pytest
 
-from geneme_structure.alphafold_client import AlphaFoldClient
-from geneme_structure.models import (
+from genome_structure.alphafold_client import AlphaFoldClient
+from genome_structure.models import (
     AlphaFoldEntry,
     PipelineResult,
     StructureResult,
     VariantAnnotation,
 )
-from geneme_structure.report import render_structure_html, write_structure_html
+from genome_structure.report import render_structure_html, write_structure_html
 
 # Three-residue toy model; B-factor column holds pLDDT like AlphaFold models.
 PDB = """\

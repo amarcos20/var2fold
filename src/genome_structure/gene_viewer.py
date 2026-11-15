@@ -11,9 +11,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from geneme_structure.models import PipelineResult, StructureResult
-from geneme_structure.pipeline import _top_effect
-from geneme_structure.report import PLDDT_BANDS, THREEDMOL_URL, _e, _script_json
+from genome_structure.models import PipelineResult, StructureResult
+from genome_structure.pipeline import _top_effect
+from genome_structure.report import PLDDT_BANDS, THREEDMOL_URL, _e, _script_json
 
 _PAGE = """<!doctype html>
 <html lang="en">
@@ -295,8 +295,8 @@ def _provenance_rows(prov: dict[str, Any]) -> str:
     items = [
         ("Generated", prov.get("generated_utc")),
         (
-            "geneme-structure",
-            f"{sw.get('geneme_structure')} (commit {sw.get('git_commit') or '?'})",
+            "genome-structure",
+            f"{sw.get('genome_structure')} (commit {sw.get('git_commit') or '?'})",
         ),
         ("Assembly", ds.get("genome_assembly")),
         ("Ensembl release", ds.get("ensembl_release")),
