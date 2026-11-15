@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##reference=GRCh38
+##INFO=<ID=NOTE,Number=1,Type=String,Description="Expected protein change">
+##contig=<ID=chr17>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr17	7676154	P72R	G	C	.	.	NOTE=common_polymorphism
+chr17	7675088	R175H	C	T	.	.	NOTE=hotspot
+chr17	7674872	Y220C	T	C	.	.	NOTE=hotspot
+chr17	7674230	G245S	C	T	.	.	NOTE=hotspot
+chr17	7674220	R248Q	C	T	.	.	NOTE=hotspot
+chr17	7674221	R248W	G	A	.	.	NOTE=hotspot
+chr17	7673802	R273H	C	T	.	.	NOTE=hotspot
+chr17	7673776	R282W	G	A	.	.	NOTE=hotspot
+chr17	7670000	SV_EXAMPLE	N	<DEL>	.	.	NOTE=symbolic_allele_is_skipped

@@ -197,6 +197,14 @@ def _variant_panel(result: PipelineResult) -> str:
     ]
     if a.protein_position:
         rows.append(("Protein change", f"{a.amino_acids or '?'} at residue {a.protein_position}"))
+    if a.rsid:
+        rows.append(("dbSNP", a.rsid))
+    if a.clinvar_significance:
+        rows.append(("ClinVar", ", ".join(s.replace("_", " ") for s in a.clinvar_significance)))
+    if a.clinvar_somatic:
+        rows.append(("ClinVar somatic", a.clinvar_somatic))
+    if a.gnomad_af is not None:
+        rows.append(("gnomAD AF", f"{a.gnomad_af:.3g}"))
     body = "".join(f"<dt>{_e(k)}</dt><dd>{_e(v)}</dd>" for k, v in rows)
     return f'<div class="panel"><h2>Variant</h2><dl>{body}</dl></div>'
 

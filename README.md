@@ -4,7 +4,7 @@
 
 `geneme-structure` links three data sources:
 
-1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region.
+1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region. It also returns the allele-specific ClinVar significance, rsID and gnomAD frequency.
 2. **[AlphaGenome](https://deepmind.google.com/science/alphagenome)** (Google DeepMind) scores the variant with the model's recommended variant scorers (expression, chromatin accessibility, histone marks, TF binding, methylation, splicing, 3D contacts) over up to 1 Mb of sequence context, using the AlphaGenome 2 SDK.
 3. **[AlphaFold Protein Structure Database](https://alphafold.ebi.ac.uk)** (EMBL-EBI) supplies the predicted 3D structure, with per-residue pLDDT confidence at the mutated residue.
 
@@ -37,7 +37,8 @@ flowchart LR
 | `models.py` | Pydantic models: `GenomicVariant`, `GenomicInterval`, `VariantAnnotation`, `TrackSummary`, `AlphaFoldEntry`, `PipelineResult` |
 | `alphagenome_client.py` | Wraps the official SDK, adds a content-addressed JSON cache and a throttle, and reduces numpy tracks to compact summaries |
 | `alphafold_client.py` | AlphaFold DB metadata, cached structure download, per-residue pLDDT parsing |
-| `gene_mapping.py` | Variant/region → gene → UniProt (Ensembl VEP, Ensembl overlap, UniProt search) |
+| `gene_mapping.py` | Variant/region → gene → UniProt, plus ClinVar, rsID and gnomAD AF (batched Ensembl VEP, Ensembl overlap, UniProt search) |
+| `vcf.py` | Dependency-free VCF reader (plain or gzip); splits multi-allelic records and skips symbolic ALTs |
 | `http_session.py` | Shared `requests` session that retries 429/5xx and honours `Retry-After` |
 | `report.py` | Self-contained HTML report: 3Dmol.js viewer coloured by pLDDT, mutated residue highlighted |
 | `pipeline.py` | Orchestration, reporting, and the CLI |
@@ -82,6 +83,9 @@ geneme-structure variant 'chr17:7675088:C>T' \
 # Protein-coding genes in a region, their predicted signal, and structures
 geneme-structure region chr17:7668421-7687490 --max-genes 5
 
+# Batch: every variant in a VCF -> one summary table (VEP annotation is batched)
+geneme-structure vcf examples/tp53_hotspots.vcf --max-variants 25
+
 # Structure only (no API key required)
 geneme-structure structure P04637 --residue 175
 
@@ -97,6 +101,7 @@ Each run prints a summary and writes:
 - `results/<query>_tracks.csv`: raw-track summaries when `--outputs` is given (REF/ALT sums, log2FC, max |Δ|, top track)
 - `results/<query>_<AF entry>.html`: an interactive 3D viewer (open in any browser), with the structure embedded and coloured by pLDDT and the mutated residue highlighted
 - `data/structures/AF-<acc>-F1-model_v*.pdb`: the downloaded structure
+- `vcf` mode: `results/<vcf>_summary.csv`, with one row per (variant, condition). Columns: gene, protein change, ClinVar, gnomAD AF, residue pLDDT, and representative RNA LFC, splicing and accessibility effects. Add `--reports` for per-variant JSON/HTML.
 
 ### Python API
 
@@ -114,6 +119,19 @@ print(result.structures[0].residue_plddt)
 for vs in result.variant_scores:
     print(vs.label, [(s.output_type, s.top_score) for s in vs.effects()][:3])
 ```
+
+### Example: TP53 hotspots
+
+`examples/tp53_hotspots.vcf` holds seven cancer hotspots and the common P72R polymorphism. Abridged output for transverse colon, 16 KB window:
+
+| variant | change | ClinVar | residue pLDDT | RNA LFC | splicing | accessibility |
+|---|---|---|---:|---:|---:|---:|
+| chr17:7676154:G>C | P72R | pathogenic; benign | 48.3 | -0.064 | 0.127 | 0.008 |
+| chr17:7675088:C>T | R175H | (likely) pathogenic | 96.6 | -0.012 | 0.041 | 0.047 |
+| chr17:7674872:T>C | Y220C | (likely) pathogenic | 97.7 | -0.045 | **0.521** | 0.025 |
+| chr17:7673802:C>T | R273H | (likely) pathogenic | 98.6 | -0.007 | 0.065 | -0.029 |
+
+The hotspots sit in the confidently predicted DNA-binding domain (pLDDT > 94). P72R lies in the disordered proline-rich region. AlphaGenome's regulatory effects are small for most of these coding changes, with Y220C's splicing score as the outlier.
 
 ## Configuration
 

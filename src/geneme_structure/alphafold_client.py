@@ -41,6 +41,7 @@ class AlphaFoldClient:
         self.timeout = timeout
         self.session = session or build_session()
         self.base_url = base_url.rstrip("/")
+        self._predictions: dict[str, list[AlphaFoldEntry]] = {}  # per-session memo
 
     # ------------------------------------------------------------------ metadata
 
@@ -49,18 +50,23 @@ class AlphaFoldClient:
         acc = uniprot_accession.strip().upper()
         if not UNIPROT_RE.match(acc):
             raise ValueError(f"{uniprot_accession!r} is not a valid UniProt accession")
+        if acc in self._predictions:
+            return self._predictions[acc]
 
         url = f"{self.base_url}/prediction/{acc}"
         logger.info("Fetching AlphaFold DB metadata for %s", acc)
         resp = self.session.get(url, timeout=self.timeout)
         if resp.status_code in (400, 404):
             logger.warning("No AlphaFold DB entry for %s (HTTP %s)", acc, resp.status_code)
+            self._predictions[acc] = []
             return []
         resp.raise_for_status()
         data = resp.json()
         if not isinstance(data, list):
             raise AlphaFoldError(f"Unexpected response shape from {url}: {type(data).__name__}")
-        return [AlphaFoldEntry.model_validate(item) for item in data]
+        entries = [AlphaFoldEntry.model_validate(item) for item in data]
+        self._predictions[acc] = entries
+        return entries
 
     def get_entry(
         self, uniprot_accession: str, residue: int | None = None
