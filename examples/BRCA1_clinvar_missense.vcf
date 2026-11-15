@@ -1,0 +1,18 @@
+##fileformat=VCFv4.2
+##fileDate=20261115
+##source=geneme-structure 0.1.0 (ClinVar)
+##reference=GRCh38
+##INFO=<ID=CLNVCV,Number=1,Type=String,Description="ClinVar VCV accession">
+##INFO=<ID=CLNSIG,Number=1,Type=String,Description="ClinVar germline classification">
+##INFO=<ID=CLNREVSTAT,Number=1,Type=String,Description="ClinVar review status">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr17	43045761	W1837G	A	C	.	.	CLNVCV=VCV000055607;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43049170	L1786P	A	G	.	.	CLNVCV=VCV000091649;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43051086	G1770V	C	A	.	.	CLNVCV=VCV000417832;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43057117	G1738R	C	T	.	.	CLNVCV=VCV000055461;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43063903	A1708E	G	T	.	.	CLNVCV=VCV000055407;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43067608	D1692H	C	G	.	.	CLNVCV=VCV000037633;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43074331	E1559K	C	T	.	.	CLNVCV=VCV000037604;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43106487	C61G	A	C	.	.	CLNVCV=VCV000017661;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43115730	C44S	A	T	.	.	CLNVCV=VCV000054191;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel
+chr17	43124032	L22S	A	G	.	.	CLNVCV=VCV000055656;CLNSIG=Pathogenic;CLNREVSTAT=reviewed_by_expert_panel

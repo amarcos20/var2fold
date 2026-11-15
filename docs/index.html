@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>geneme-structure</title>
+<meta name="description" content="From a genetic variant to its predicted regulatory effect
+and the 3D protein it hits: AlphaGenome + AlphaFold DB + ClinVar.">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d2330; --muted: #5d6676; --panel: #f4f6f9;
+    --border: #dde2ea; --accent: #c2185b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b; --fg: #e6e9ef; --muted: #9aa3b2; --panel: #1b2029;
+      --border: #2c3340; --accent: #f06292;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 16px 56px; }
+  h1 { font-size: 2rem; margin: 0 0 6px; letter-spacing: -.01em; }
+  .lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+  h2 { font-size: 1.15rem; margin: 40px 0 12px; }
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 760px) { .flow { grid-template-columns: 1fr 1fr; } }
+  .step { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; font-size: .9rem; }
+  .step b { display: block; margin-bottom: 2px; }
+  .step span { color: var(--muted); }
+  .case { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; margin-bottom: 18px; }
+  @media (max-width: 760px) { .case { grid-template-columns: 1fr; } }
+  .case img { width: 100%; height: auto; border-radius: 8px; background: #fff;
+    border: 1px solid var(--border); }
+  .case h3 { margin: 0 0 8px; font-size: 1.1rem; }
+  .case p { margin: 0 0 12px; font-size: .95rem; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .links a { text-decoration: none; padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg); font-size: .9rem; }
+  .links a.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+  pre { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; }
+  .case code { color: var(--muted); }
+  .notice { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; }
+  ul.attr { font-size: .85rem; color: var(--muted); padding-left: 18px; }
+  footer { color: var(--muted); font-size: .85rem; margin-top: 40px;
+    border-top: 1px solid var(--border); padding-top: 16px; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>geneme-structure</h1>
+  <p class="lead">From a genetic variant to its predicted regulatory effect and the 3D
+  protein it hits. Start from a variant, a VCF or just a gene name.</p>
+
+  <div class="flow">
+    <div class="step"><b>1 · ClinVar</b><span>known pathogenic variants for a gene</span></div>
+    <div class="step"><b>2 · Ensembl VEP</b><span>gene, consequence, residue, gnomAD</span></div>
+    <div class="step"><b>3 · AlphaGenome</b><span>predicted effect on expression,
+      splicing, chromatin</span></div>
+    <div class="step"><b>4 · AlphaFold DB</b><span>3D model and confidence at the
+      mutated residue</span></div>
+  </div>
+
+  <h2>Case studies</h2>
+  <article class="case">
+  <img src="img/brca1_effects.png" alt="Figure from the BRCA1: pathogenic missense variants from ClinVar case study">
+  <div>
+    <h3>BRCA1: pathogenic missense variants from ClinVar</h3>
+    <p>Ten expert-panel pathogenic missense variants, most in the folded RING and BRCT domains. Two of them, D1692H and E1559K, get AlphaGenome splicing scores about 40× the median. Both sit on the last base of an exon, and VEP independently flags exactly these two as splice-region variants: damage that may come from mis-splicing as well as from the amino-acid change.</p>
+    <p><code>geneme-structure gene BRCA1 --max-variants 10</code></p>
+    <div class="links">
+      <a class="primary" href="brca1/viewer.html">Open 3D viewer</a>
+      <a href="brca1/report.html">Full report</a>
+      <a href="brca1/provenance.json">Provenance</a>
+    </div>
+  </div>
+</article>
+<article class="case">
+  <img src="img/tp53_plddt_profile.png" alt="Figure from the TP53: cancer hotspots case study">
+  <div>
+    <h3>TP53: cancer hotspots</h3>
+    <p>Seven cancer hotspots and the common P72R polymorphism. Every hotspot sits in the folded DNA-binding domain (residue pLDDT 95–99), which fits a structural mechanism. Predicted regulatory effects are small, with one splicing outlier (Y220C) worth testing.</p>
+    <p><code>geneme-structure vcf examples/tp53_hotspots.vcf</code></p>
+    <div class="links">
+      <a class="primary" href="tp53/viewer.html">Open 3D viewer</a>
+      <a href="tp53/report.html">Full report</a>
+      <a href="tp53/provenance.json">Provenance</a>
+    </div>
+  </div>
+</article>
+
+  <h2>Run it on your gene</h2>
+<pre>pip install -e ".[alphagenome,notebook]"   # from a clone of the repository
+geneme-structure gene YOUR_GENE --max-variants 10
+papermill notebooks/gene_report.ipynb YOUR_GENE.ipynb -p gene YOUR_GENE</pre>
+  <p>Code, documentation and tests: <a href="https://github.com/amarcos20/geneme-structure">https://github.com/amarcos20/geneme-structure</a></p>
+
+  <h2>About this snapshot</h2>
+  <p class="notice">Research use only, not for clinical decision-making. These pages were
+  generated on <strong>2026-11-15</strong>. ClinVar, Ensembl, AlphaFold DB and AlphaGenome
+  change over time; each case lists the exact versions in its <code>provenance.json</code>
+  and in the panel at the bottom of its 3D viewer.</p>
+  <ul class="attr"><li><strong>AlphaGenome.</strong> Predictions from AlphaGenome (Google DeepMind), API used under the AlphaGenome Terms of Service (https://alphagenome.google/terms): outputs are for non-commercial research use only, not for clinical decision-making, and not for training other models. Avsec et al., Nature 649, 1206-1218 (2026).</li><li><strong>AlphaFold DB.</strong> Structures from the AlphaFold Protein Structure Database (EMBL-EBI), CC-BY-4.0. Jumper et al., Nature 2021; Varadi et al., Nucleic Acids Res. 2024.</li><li><strong>ClinVar.</strong> Variant classifications from ClinVar (NCBI). Landrum et al., Nucleic Acids Res.</li><li><strong>Ensembl.</strong> Annotation from Ensembl VEP and REST. Martin et al., Nucleic Acids Res. 2023.</li><li><strong>UniProt.</strong> Protein domains from UniProtKB, CC-BY-4.0.</li></ul>
+  <footer>geneme-structure 0.1.0 · built with <code>scripts/build_site.py</code></footer>
+</main>
+</body>
+</html>

@@ -35,6 +35,7 @@ def _session() -> FakeSession:
     s.add("/vep/", vep_echo(lambda line: VEP_TP53))
     s.add("/api/prediction/", FakeResponse(payload=[AF_ENTRY]))
     s.add("/files/", FakeResponse(content=TOY_PDB.encode()))
+    s.add("/info/software", FakeResponse(payload={"release": 116}))
     return s
 
 
@@ -266,6 +267,11 @@ def test_cli_gene_without_alphagenome(tmp_path, monkeypatch, capsys):
     assert "chr17\t7675088\tR2H\tC\tT" in vcf
     summary = pd.read_csv(tmp_path / "res" / "TP53_clinvar_missense_summary.csv")
     assert summary.loc[0, "vcf_id"] == "R2H"
+    prov = json.loads((tmp_path / "res" / "TP53_clinvar_missense_provenance.json").read_text())
+    assert prov["data_sources"]["ensembl_release"] == 116
+    assert prov["data_sources"]["clinvar_query_date"]
+    viewer = (tmp_path / "res" / "TP53_clinvar_missense_viewer.html").read_text()
+    assert "R2H" in viewer and "About this snapshot" in viewer
 
 
 def test_cli_gene_no_hits_is_an_error(tmp_path, monkeypatch):

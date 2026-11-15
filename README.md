@@ -4,6 +4,8 @@
 
 **From a genetic variant to its predicted regulatory effect to the 3D protein it hits, in one command.**
 
+**[Live demo: interactive 3D viewers and reports for BRCA1 and TP53](https://amarcos20.github.io/geneme-structure/)**
+
 `geneme-structure` starts from a variant, a VCF, a region, or just a **gene symbol** (its known pathogenic variants are pulled from ClinVar), and links three data sources:
 
 1. **Ensembl VEP / REST** finds the gene, the consequence, the protein position and the UniProt accession for a GRCh38 variant or region. It also returns the allele-specific ClinVar significance, rsID and gnomAD frequency.
@@ -47,6 +49,8 @@ flowchart LR
 | `vcf.py` | Dependency-free VCF reader (plain or gzip); splits multi-allelic records and skips symbolic ALTs |
 | `http_session.py` | Shared `requests` session that retries 429/5xx and honours `Retry-After` |
 | `report.py` | Self-contained HTML report: 3Dmol.js viewer coloured by pLDDT, mutated residue highlighted |
+| `gene_viewer.py` | One HTML page per batch: every variant on the AlphaFold model, clickable table, provenance panel |
+| `provenance.py` | Date, git commit, SDK, Ensembl release, AlphaFold model versions, parameters and data-source attribution |
 | `plots.py` | Notebook figures: pLDDT profile with variants and domains (collision-free labels), AlphaGenome effect panels |
 | `pipeline.py` | Orchestration, batch summary and data-driven findings, reporting, and the CLI |
 
@@ -114,7 +118,8 @@ Each run prints a summary and writes:
 - `results/<query>_tracks.csv`: raw-track summaries when `--outputs` is given (REF/ALT sums, log2FC, max |Δ|, top track)
 - `results/<query>_<AF entry>.html`: an interactive 3D viewer (open in any browser), with the structure embedded and coloured by pLDDT and the mutated residue highlighted
 - `data/structures/AF-<acc>-F1-model_v*.pdb`: the downloaded structure
-- `gene` mode: `results/<GENE>_clinvar_<consequence>.vcf` (the exact selection, re-runnable with `vcf`) and `results/<GENE>_clinvar_<consequence>_summary.csv`
+- `gene` mode: `results/<GENE>_clinvar_<consequence>.vcf` (the exact selection, dated and re-runnable with `vcf`) and `results/<GENE>_clinvar_<consequence>_summary.csv`
+- `gene` and `vcf` modes: `<stem>_viewer.html` (all variants on one interactive structure) and `<stem>_provenance.json` (versions and parameters behind the run)
 - `vcf` mode: `results/<vcf>_summary.csv`, with one row per (variant, condition). Columns: gene, protein change, ClinVar, gnomAD AF, residue pLDDT, and representative RNA LFC, splicing and accessibility effects. Add `--reports` for per-variant JSON/HTML.
 
 ### Python API
@@ -174,6 +179,18 @@ Parameters: `gene`, `consequence` (`missense`, `coding`, `splice`, `any`), `sign
 
 All ten variants are coding missense changes. Most sit in the folded RING and BRCT domains (median pLDDT 93.7). Two of them, D1692H (+9.6) and E1559K (+8.3), get splicing scores roughly 40× the median. Both sit on the last base of an exon, and VEP independently annotates exactly these two as `splice_region_variant`. The model is flagging variants whose damage may come from mis-splicing as well as from the amino-acid change. This is a prediction to check against RNA evidence, not a classification.
 
+### Project site (GitHub Pages)
+
+[`docs/`](docs/) is a static site, with a landing page and, for each case study, a 3D viewer, the executed notebook as HTML and a `provenance.json`. Rebuild it with:
+
+```bash
+python scripts/build_site.py
+```
+
+The variants come from fixed, dated VCFs in [`examples/`](examples/) and the AlphaGenome scores come from the local cache, so a rebuild costs no API quota. To publish, open the repository settings, choose **Pages**, then **Deploy from a branch**: `main`, folder `/docs`.
+
+Each page shows the generation date and the versions used (Ensembl release, AlphaFold DB model, AlphaGenome SDK and window, ClinVar query date). The sources keep changing, so a page is a snapshot, not a live result. AlphaGenome outputs are shown under its [Terms of Service](https://alphagenome.google/terms): non-commercial research use, no clinical decision-making, and no training of other models.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -187,7 +204,7 @@ All ten variants are coding missense changes. Most sit in the folded RING and BR
 ## Development
 
 ```bash
-pytest --cov=geneme_structure   # 76 offline tests, ~93% coverage, no network or API key
+pytest --cov=geneme_structure   # 81 offline tests, ~93% coverage, no network or API key
 ruff check . && ruff format --check .
 ```
 
